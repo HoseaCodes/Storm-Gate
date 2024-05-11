@@ -12,8 +12,8 @@ import {
   updateProfile,
   deleteProfile,
   getAllUsers,
-  addCart,
-  history
+  // addCart,
+  // history
 } from '../controllers/user.js';
 const router = express.Router();
 import {nodecache} from '../utils/cache.js';
@@ -29,9 +29,9 @@ router.get('/refresh_token', refreshToken);
 
 router.get('/info', auth, nodecache, getUser);
 
-router.patch('/addcart', auth, addCart);
+// router.patch('/addcart', auth, addCart);
 
-router.get('/history', auth, nodecache, history);
+// router.get('/history', auth, nodecache, history);
 
 router.route('/:id')
     .get(isAdmin, nodecache, getAllUsers)

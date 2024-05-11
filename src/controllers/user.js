@@ -1,26 +1,19 @@
-
-import Users from "../models/user.js";
-import Payments from "../models/payment.js";
+import User from "../models/user.js";
+// import Payments from "../models/payment.js";
 import Logger from "../utils/logger.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { cache } from "../utils/cache.js";
-const logger = new Logger("articles");
-
-const createAccessToken = (user) => {
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1d" });
-};
-
-const createRefreshToken = (user) => {
-  return jwt.sign(user, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
-};
+import { createAccessToken, createRefreshToken } from "../utils/auth.js";
+import BlogUser from "../models/blogUser.js";
+const logger = new Logger("users");
 
 async function register(req, res) {
   try {
-    let { name, email, password, role } = req.body;
+    let { name, email, password, role, application } = req.body;
+    // User is role 0
     // Admin is role 1
-
-    const user = await Users.findOne({ email });
+    const user = await User.findOne({ email });
     if (user)
       return res
         .status(409)
@@ -34,15 +27,34 @@ async function register(req, res) {
     //Password Encryption
     const passwordHash = await bcrypt.hash(password, 10);
 
-    //Create new user instance
-    const newUser = new Users({
-      name,
-      email,
-      password: passwordHash,
-      role,
-    });
-    // Save mongodb
-    await newUser.save();
+    const newUser = async (application) => {
+      switch (application) {
+        case "blog":
+          const blog = new BlogUser({
+            name,
+            email,
+            password: passwordHash,
+            application,
+            aboutMe: "About me",
+          });
+          return await blog.save();
+        case "ecommerce":
+          break;
+        case "social":
+          break;
+        default:
+          const newUser = new User({
+            name,
+            email,
+            password: passwordHash,
+            role,
+            application,
+          });
+          return await newUser.save();
+      }
+    }
+
+    newUser(application);
 
     //Create jsonwebtoken for authentication
     const accesstoken = createAccessToken({ id: newUser._id });
@@ -87,7 +99,7 @@ async function login(req, res) {
   try {
     const { email, password, rememberMe } = req.body;
 
-    const user = await Users.findOne({ email });
+    const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: "User does not exist." });
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -127,7 +139,7 @@ async function logout(req, res) {
 
 async function getAllUsers(req, res) {
   try {
-    const users = await Users.find();
+    const users = await User.find();
 
     logger.info("Returning all of the users");
 
@@ -156,55 +168,55 @@ async function getAllUsers(req, res) {
   }
 }
 
-async function addCart(req, res) {
-  try {
-    const user = await Users.findById(req.user.id);
-    if (!user) return res.status(400).json({ msg: "User does not exist" });
+// async function addCart(req, res) {
+//   try {
+//     const user = await User.findById(req.user.id);
+//     if (!user) return res.status(400).json({ msg: "User does not exist" });
 
-    console.log(req.body.cart);
+//     console.log(req.body.cart);
 
-    await Users.findByIdAndUpdate(
-      { _id: req.user.id },
-      {
-        cart: req.body.cart,
-      }
-    );
+//     await User.findByIdAndUpdate(
+//       { _id: req.user.id },
+//       {
+//         cart: req.body.cart,
+//       }
+//     );
 
-    res.clearCookie("history-cache");
+//     res.clearCookie("history-cache");
 
-    return res.json({ msg: "Added to cart" });
-  } catch (err) {
-    return res.status(500).json({ msg: err.message });
-  }
-}
+//     return res.json({ msg: "Added to cart" });
+//   } catch (err) {
+//     return res.status(500).json({ msg: err.message });
+//   }
+// }
 
-async function history(req, res) {
-  try {
-    const history = await Payments.find({ user_id: req.user.id });
+// async function history(req, res) {
+//   try {
+//     const history = await Payments.find({ user_id: req.user.id });
 
-    res.cookie("history-cache", history.length + "history", {
-      maxAge: 1000 * 60 * 60, // would expire after an hour
-      httpOnly: true, // The cookie only accessible by the web server
-    });
+//     res.cookie("history-cache", history.length + "history", {
+//       maxAge: 1000 * 60 * 60, // would expire after an hour
+//       httpOnly: true, // The cookie only accessible by the web server
+//     });
 
-    cache.set(history.length + "history", {
-      status: "success",
-      result: history,
-      location: "cache",
-    });
-    return res.json({
-      status: "success",
-      result: history,
-      location: "main",
-    });
-  } catch (err) {
-    return res.status(500).json({ msg: err.message });
-  }
-}
+//     cache.set(history.length + "history", {
+//       status: "success",
+//       result: history,
+//       location: "cache",
+//     });
+//     return res.json({
+//       status: "success",
+//       result: history,
+//       location: "main",
+//     });
+//   } catch (err) {
+//     return res.status(500).json({ msg: err.message });
+//   }
+// }
 
 async function getUser(req, res) {
   try {
-    const user = await Users.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(400).json({ msg: "User does not exist" });
 
     res.cookie("user-cache", user.id + "user", {
@@ -253,42 +265,43 @@ async function updateProfile(req, res) {
       notifications,
       favoriteArticles,
       savedArticles,
-      likedArticles
+      likedArticles,
     } = req.body;
 
     const originalBody = req.body;
-    const originalUser = await Users.findOne({ _id: req.params.id });
+    const originalUser = await User.findOne({ _id: req.params.id });
     if (originalBody.notifications) {
       const newNotifications = originalUser.notifications.concat(notifications);
       const uniqueNotifications = [...new Set(newNotifications)];
       console.log({ newNotifications });
-      await Users.findOneAndUpdate(
+      await User.findOneAndUpdate(
         { _id: req.params.id },
         {
           notifications: uniqueNotifications,
         }
       );
     }
-    
+
     if (originalBody.favoriteArticles) {
       console.log(`favoriteArticles`);
-      const newFavoriteArticles =
-        originalUser.favoriteArticles.concat(favoriteArticles);
+      const newFavoriteArticles = originalUser.favoriteArticles.concat(
+        favoriteArticles
+      );
       const uniqueFavoriteArticles = [...new Set(newFavoriteArticles)];
-      await Users.findOneAndUpdate(
+      await User.findOneAndUpdate(
         { _id: req.params.id },
         {
           favoriteArticles: uniqueFavoriteArticles,
         }
       );
     }
-    
+
     if (originalBody.savedArticles) {
       console.log(`savedArticles`);
       const newSavedArticles = originalUser.savedArticles.concat(savedArticles);
       const uniqueSavedArticles = [...new Set(newSavedArticles)];
       console.log({ newSavedArticles });
-      await Users.findOneAndUpdate(
+      await User.findOneAndUpdate(
         { _id: req.params.id },
         {
           savedArticles: uniqueSavedArticles,
@@ -301,7 +314,7 @@ async function updateProfile(req, res) {
       const newLikedArticles = originalUser.likedArticles.concat(likedArticles);
       const uniqueLikedArticles = [...new Set(newLikedArticles)];
       console.log({ newLikedArticles });
-      await Users.findOneAndUpdate(
+      await User.findOneAndUpdate(
         { _id: req.params.id },
         {
           likedArticles: uniqueLikedArticles,
@@ -309,7 +322,7 @@ async function updateProfile(req, res) {
       );
     }
 
-    // await Users.findOneAndUpdate(
+    // await User.findOneAndUpdate(
     //   { _id: req.params.id },
     //   {
     //     name,
@@ -347,7 +360,7 @@ async function deleteProfile(req, res) {
   try {
     logger.info(`Deleted user ${req.params.id} has been deleted`);
 
-    await Users.findByIdAndDelete(req.params.id);
+    await User.findByIdAndDelete(req.params.id);
 
     res.clearCookie("users-cache");
     res.clearCookie("user-cache");
@@ -369,6 +382,6 @@ export {
   updateProfile,
   deleteProfile,
   getAllUsers,
-  addCart,
-  history,
+  // addCart,
+  // history,
 };
