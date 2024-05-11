@@ -43,6 +43,12 @@ const limiter = rateLimit({
 // Apply the rate limiting middleware to all requests
 app.use(limiter);
 
+const router = express.Router();
+
+router.get('/health', (req, res) => {
+  res.status(200).send('Ok');
+});
+
 // Put API routes here, before the "catch all" route
 app.use('/api', uploadRouter);
 app.use('/api/user', userRouter);
