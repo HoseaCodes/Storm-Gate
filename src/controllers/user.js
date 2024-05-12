@@ -4,8 +4,10 @@ import Logger from "../utils/logger.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { cache } from "../utils/cache.js";
-import { createAccessToken, createRefreshToken } from "../utils/auth.js";
+import { createAccessToken, createRefreshToken, authRole } from "../utils/auth.js";
 import BlogUser from "../models/blogUser.js";
+import UnregisteredUser from "../models/unregisteredUser";
+
 const logger = new Logger("users");
 
 async function register(req, res) {
@@ -66,7 +68,7 @@ async function register(req, res) {
       maxAge: 7 * 25 * 60 * 60 * 1000,
     });
 
-    res.json({ accesstoken });
+    res.json({ accesstoken, status: "Successful" });
   } catch (err) {
     return res.status(500).json({ msg: err.message });
   }
@@ -122,7 +124,7 @@ async function login(req, res) {
       httpOnly: true,
     });
 
-    res.json({ accesstoken });
+    res.json({ accesstoken, status: "Successful"});
   } catch (err) {
     return res.status(500).json({ msg: err.message });
   }
@@ -131,7 +133,7 @@ async function login(req, res) {
 async function logout(req, res) {
   try {
     res.clearCookie("refreshtoken", { path: "/api/user/refresh_token" });
-    return res.json({ msg: "Logged Out" });
+    return res.json({ msg: "Logged Out", status: "Successful"});
   } catch (err) {
     return res.status(500).json({ msg: err.message });
   }
@@ -140,7 +142,17 @@ async function logout(req, res) {
 async function getAllUsers(req, res) {
   try {
     const users = await User.find();
-
+    if (!users) return res.status(400).json({ msg: "No users exist" });
+    let granted = true;
+    const access = ["basic", "supervisor", "admin"];
+    granted = authRole(access, users);
+    const unregisteredUser = await UnregisteredUser.find();
+    if (!granted) {
+      return res.status(401).json({
+        error:
+          "Not allowed: You don't have enough permission to perform this action",
+      });
+    }
     logger.info("Returning all of the users");
 
     res.cookie("users-cache", users.length + "users", {
@@ -150,15 +162,17 @@ async function getAllUsers(req, res) {
 
     cache.set(users.length + "users", {
       status: "success",
-      users: users,
-      result: users.length,
+      users: [users, unregisteredUser],
+      result: users.length + unregisteredUser.length,
       location: "cache",
     });
 
     res.json({
       status: "success",
       users: users,
-      result: users.length,
+      unregisteredUser: unregisteredUser,
+      allUsers: [users, unregisteredUser],
+      result: users.length + unregisteredUser.length,
       location: "main",
     });
   } catch (err) {
@@ -218,7 +232,15 @@ async function getUser(req, res) {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(400).json({ msg: "User does not exist" });
-
+    let granted = true;
+    const access = ["basic", "supervisor", "admin"];
+    granted = authRole(access, user);
+    if (!granted) {
+      return res.status(401).json({
+        error:
+          "Not allowed: You don't have enough permission to perform this action",
+      });
+    }
     res.cookie("user-cache", user.id + "user", {
       maxAge: 1000 * 60 * 60, // would expire after an hour
       httpOnly: true, // The cookie only accessible by the web server
@@ -226,7 +248,7 @@ async function getUser(req, res) {
 
     cache.set(user.id + "user", {
       status: "success",
-      users: user,
+      user: user,
       result: user.length,
       location: "cache",
     });
@@ -245,23 +267,6 @@ async function getUser(req, res) {
 async function updateProfile(req, res) {
   try {
     const {
-      name,
-      avatar,
-      title,
-      work,
-      education,
-      skills,
-      location,
-      phone,
-      socialMedia,
-      websites,
-      socialMediaHandles,
-      articles,
-      cart,
-      role,
-      username,
-      aboutMe,
-      projects,
       notifications,
       favoriteArticles,
       savedArticles,
@@ -269,86 +274,80 @@ async function updateProfile(req, res) {
     } = req.body;
 
     const originalBody = req.body;
-    const originalUser = await User.findOne({ _id: req.params.id });
+    const userId = req.params.id;
+    const originalUser = await User.findOne({ _id: userId });
+    let granted = true;
+    const access = ["auperAdmin", "admin"];
+    granted = authRole(access, originalUser);
+    if (!granted) {
+      return res.status(401).json({
+        error:
+          "Not allowed: You don't have enough permission to perform this action",
+      });
+    }
     if (originalBody.notifications) {
       const newNotifications = originalUser.notifications.concat(notifications);
       const uniqueNotifications = [...new Set(newNotifications)];
       console.log({ newNotifications });
       await User.findOneAndUpdate(
-        { _id: req.params.id },
+        { _id: userId },
         {
           notifications: uniqueNotifications,
         }
       );
+      delete originalBody["notifications"];
     }
 
     if (originalBody.favoriteArticles) {
-      console.log(`favoriteArticles`);
       const newFavoriteArticles = originalUser.favoriteArticles.concat(
         favoriteArticles
       );
       const uniqueFavoriteArticles = [...new Set(newFavoriteArticles)];
       await User.findOneAndUpdate(
-        { _id: req.params.id },
+        { _id: userId },
         {
           favoriteArticles: uniqueFavoriteArticles,
         }
       );
+      delete originalBody["favoriteArticles"];
     }
 
     if (originalBody.savedArticles) {
-      console.log(`savedArticles`);
       const newSavedArticles = originalUser.savedArticles.concat(savedArticles);
       const uniqueSavedArticles = [...new Set(newSavedArticles)];
-      console.log({ newSavedArticles });
       await User.findOneAndUpdate(
-        { _id: req.params.id },
+        { _id: userId },
         {
           savedArticles: uniqueSavedArticles,
         }
       );
+      delete originalBody["savedArticles"];
     }
 
     if (originalBody.likedArticles) {
-      console.log(`likedArticles`);
       const newLikedArticles = originalUser.likedArticles.concat(likedArticles);
       const uniqueLikedArticles = [...new Set(newLikedArticles)];
       console.log({ newLikedArticles });
       await User.findOneAndUpdate(
-        { _id: req.params.id },
+        { _id: userId },
         {
           likedArticles: uniqueLikedArticles,
         }
       );
+      delete originalBody["likedArticles"];
     }
 
-    // await User.findOneAndUpdate(
-    //   { _id: req.params.id },
-    //   {
-    //     name,
-    //     avatar,
-    //     title,
-    //     work,
-    //     education,
-    //     skills,
-    //     location,
-    //     phone,
-    //     socialMedia,
-    //     websites,
-    //     socialMediaHandles,
-    //     articles,
-    //     cart,
-    //     role,
-    //     username,
-    //     aboutMe,
-    //     projects
-    //   }
-    // );
+    const user = await User.findOneAndUpdate(
+      { _id: userId },
+      {
+        ...originalBody,
+      }
+    );
 
     res.clearCookie("users-cache");
     res.clearCookie("user-cache");
 
-    res.json({ msg: "Updated profile" });
+    res.json({ msg: "Updated profile", data: user, status: "Successful"});
   } catch (err) {
     logger.error(err);
     console.log(err.message);
@@ -358,14 +357,24 @@ async function updateProfile(req, res) {
 
 async function deleteProfile(req, res) {
   try {
-    logger.info(`Deleted user ${req.params.id} has been deleted`);
-
-    await User.findByIdAndDelete(req.params.id);
+    const userId = req.params.id;
+    logger.info(`Deleted user ${userId} has been deleted`);
+    const user = await User.findById(userId);
+    let granted = true;
+    const access = ["admin"];
+    granted = authRole(access, user);
+    if (!granted) {
+      return res.status(401).json({
+        error:
+          "Not allowed: You don't have enough permission to perform this action",
+      });
+    }
+    await User.findByIdAndDelete(userId);
 
     res.clearCookie("users-cache");
     res.clearCookie("user-cache");
 
-    res.json({ msg: "Deleted user" });
+    res.json({ msg: "User has been deleted", data: null, status: "Successful"});
   } catch (err) {
     logger.error(err);
 
@@ -373,7 +382,74 @@ async function deleteProfile(req, res) {
   }
 }
 
-export {
+async function addProfile(req, res) {
+  try {
+    const { images, user } = req.body;
+    const { name, bio } = user;
+    const newUser = new UnregisteredUser({
+      images,
+      name,
+      bio,
+    });
+    await newUser.save();
+    return res.json({ data: newUser, msg: "Added Profile Successful", status: "Successful"});
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ msg: err.message });
+  }
+}
+
+async function getUsers(req, res) {
+  try {
+    const users = await User.find();
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+}
+
+async function addUser(req, res) {
+  const user = req.body;
+  const newUser = new Users(user);
+  try {
+    await newUser.save();
+    res.status(201).json(newUser);
+  } catch (error) {
+    res.status(409).json({ message: error.message });
+  }
+}
+
+async function getUserById(req, res) {
+  try {
+    const user = await User.findById(req.params.id);
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+}
+
+async function editUser(req, res) {
+  let user = req.body;
+  const editUser = new Users(user);
+  try {
+    await User.updateOne({ _id: req.params.id }, editUser);
+    res.status(201).json(editUser);
+  } catch (error) {
+    res.status(409).json({ message: error.message });
+  }
+}
+
+async function deleteUser(req, res) {
+  try {
+    await User.deleteOne({ _id: req.params.id });
+    res.status(201).json("User deleted Successfully");
+  } catch (error) {
+    res.status(409).json({ message: error.message });
+  }
+}
+
+
+const userCtrl =  {
   register,
   refreshToken,
   login,
@@ -384,4 +460,12 @@ export {
   getAllUsers,
   // addCart,
   // history,
+  addProfile,
+  getUsers,
+  addUser,
+  getUserById,
+  editUser,
+  deleteUser,
 };
+
+export default userCtrl;
