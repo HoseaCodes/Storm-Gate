@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "secrets": "sh scripts/getEnvVars.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
