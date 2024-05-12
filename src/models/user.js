@@ -31,10 +31,11 @@ const userSchema = new mongoose.Schema(
       type: Map,
       of: String,
     },
-    // role: {
-    //   type: Number,
-    //   default: 0,
-    // },
+    role: {
+      type: String,
+      default: "basic",
+      enum: ["basic", "superAdmin", "admin"],
+    },
     application: {
       type: String,
       required: true,
