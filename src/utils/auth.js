@@ -1,5 +1,6 @@
 
 import jwt from "jsonwebtoken";
+import User from "../models/user.js";
 
 const auth = (req, res, next) => {
 	try {
@@ -25,6 +26,27 @@ const auth = (req, res, next) => {
 		return res.status(500).json({ msg: err.message });
 	}
 };
+
+export async function authRole(req, res, next) {
+  console.log(req);
+  try {
+    const newUser = await User.findById(userId);
+
+    for (let role of roles) {
+      if (newUser.role == role) {
+        next();
+      }
+    }
+
+    return res.status(401).json({
+      error:
+        "Not allowed: You don't have enough permission to perform this action",
+    });
+  } catch (error) {
+    return res.status(500).json({ msg: err.message });
+  }
+}
+
 
 export const createAccessToken = (user) => {
   return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1d" });
