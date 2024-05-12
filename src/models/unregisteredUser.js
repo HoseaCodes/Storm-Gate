@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const UnregisteredUserSchema = new mongoose.Schema({
     name: {
@@ -17,4 +17,6 @@ const UnregisteredUserSchema = new mongoose.Schema({
     }
 })
 
-module.exports = mongoose.model('UnregisteredUser', UnregisteredUserSchema);
+const UnregisteredUser = mongoose.model('UnregisteredUser', UnregisteredUserSchema);
+
+export default UnregisteredUser;
