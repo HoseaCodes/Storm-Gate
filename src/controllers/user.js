@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 import { cache } from "../utils/cache.js";
 import { createAccessToken, createRefreshToken, authRole } from "../utils/auth.js";
 import BlogUser from "../models/blogUser.js";
-import UnregisteredUser from "../models/unregisteredUser";
+import UnregisteredUser from "../models/unregisteredUser.js";
 
 const logger = new Logger("users");
 
