@@ -1,10 +1,9 @@
 
 import dotenv from 'dotenv';
 import express from 'express';
-import path from 'path';
 import logger from 'morgan';
-import fileUpload from 'express-fileupload';
 import cors from 'cors';
+import fileUpload from 'express-fileupload';
 import bodyParser from "body-parser";
 import cookieParser from 'cookie-parser'
 import uploadRouter from './routes/upload.js';
@@ -21,9 +20,6 @@ const app = express();
 app.use(logger('dev'));
 app.use(express.json());
 app.use(cors());
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-}); 
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({
     extended: true
@@ -47,7 +43,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.get("/health", (req, res) => {
-  res.status(200).send("Ok");
+  res.status(200).json({ status: "Server is up and running" });
 });
 
 // Put API routes here, before the "catch all" route
