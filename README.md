@@ -9,7 +9,7 @@
 <div align="center">
   <a href="https://github.com/your_username/repo_name">
     
-  <img alt="logo" src="https://github.com/HoseaCodes/Storm-Gate/assets/66652422/7c8321b5-c732-4099-b1d5-e7e49a40a1b6">
+  <img alt="logo" src="https://github.com/HoseaCodes/Storm-Gate/assets/66652422/0f4f708b-06bc-4ecd-a160-60ee6ea8dbf7">
 
   </a>
   <br />
