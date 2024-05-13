@@ -59,10 +59,10 @@ Storm Gate is an advanced authentication API service meticulously crafted with N
 
 List the technologies, frameworks, and libraries that you used in your project.
 
-- [Technology 1](https://example.com)
-- [Technology 2](https://example.com)
-- [Technology 3](https://example.com)
-- [React](https://example.com)
+- [NodeJS](https://example.com)
+- [ExpressJS](https://example.com)
+- [Nginx](https://example.com)
+- [AWS EC2](https://example.com)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
