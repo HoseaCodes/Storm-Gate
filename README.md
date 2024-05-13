@@ -9,6 +9,8 @@
 <div align="center">
   <a href="https://github.com/your_username/repo_name">
     <img src="https://i.imgur.com/RF2Zlgb.png" alt="Logo" width="80" height="80">
+    <img width="250" alt="B3D743FD-477B-4447-A82C-9C1AA5305ABC" src="https://github.com/HoseaCodes/Storm-Gate/assets/66652422/7c8321b5-c732-4099-b1d5-e7e49a40a1b6">
+
   </a>
 
   <h3 align="center">Project Name</h3>
