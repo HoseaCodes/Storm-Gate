@@ -13,7 +13,7 @@
 
   </a>
 
-  <h3 align="center">Project Name</h3>
+  <h3 align="center">Storm Gate</h3>
 
   <p align="center">
     Short project description or tagline.
@@ -51,7 +51,7 @@
 ![IMG_9371](https://github.com/HoseaCodes/Storm-Gate/assets/66652422/bde9f6a2-e64a-4994-b278-5634eba75c2a)
 
 
-Provide a brief description of your project and its purpose. Explain why it's useful and how it can benefit users.
+Storm Gate is an advanced authentication API service meticulously crafted with Node.js, offering unparalleled security and reliability for user authentication processes. Deployed on AWS EC2, it leverages the scalability and flexibility of the cloud to ensure seamless performance under any workload. With its intuitive interface and robust architecture, Storm Gate provides developers with a powerful tool to authenticate users with ease and confidence, safeguarding their applications from unauthorized access.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
