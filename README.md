@@ -16,7 +16,7 @@
   <h3 align="center">Storm Gate</h3>
 
   <p align="center">
-    Short project description or tagline.
+    Fortifying Authentication, Unleashing Confidence.
     <br />
     <a href="https://github.com/your_username/repo_name"><strong>Explore the docs »</strong></a>
     <br />
