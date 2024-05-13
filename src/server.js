@@ -14,7 +14,6 @@ import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 imageOp();
-connectDB()
 
 const app = express();
 app.use(logger('dev'));
@@ -54,7 +53,7 @@ app.use('/api/user', userRouter);
 // development to avoid collision with React's dev server
 const port = process.env.PORT || 3001;
 const startServer = async () => {
-
+  await connectDB();
   app.listen(port, function () {
       console.log(`Express app running on port: ${port}`)
   });
