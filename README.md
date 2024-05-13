@@ -46,7 +46,8 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-[![Product Name Screen Shot](https://i.imgur.com/mB89whp.jpg)](https://example.com)
+![IMG_9371](https://github.com/HoseaCodes/Storm-Gate/assets/66652422/bde9f6a2-e64a-4994-b278-5634eba75c2a)
+
 
 Provide a brief description of your project and its purpose. Explain why it's useful and how it can benefit users.
 
