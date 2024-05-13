@@ -8,13 +8,11 @@
 
 <div align="center">
   <a href="https://github.com/your_username/repo_name">
-    <img src="https://i.imgur.com/RF2Zlgb.png" alt="Logo" width="80" height="80">
-    <img width="250" alt="B3D743FD-477B-4447-A82C-9C1AA5305ABC" src="https://github.com/HoseaCodes/Storm-Gate/assets/66652422/7c8321b5-c732-4099-b1d5-e7e49a40a1b6">
+    
+  <img alt="logo" src="https://github.com/HoseaCodes/Storm-Gate/assets/66652422/7c8321b5-c732-4099-b1d5-e7e49a40a1b6">
 
   </a>
-
-  <h3 align="center">Storm Gate</h3>
-
+  <br />
   <p align="center">
     Fortifying Authentication, Unleashing Confidence.
     <br />
@@ -59,10 +57,10 @@ Storm Gate is an advanced authentication API service meticulously crafted with N
 
 List the technologies, frameworks, and libraries that you used in your project.
 
-- [NodeJS](https://example.com)
-- [ExpressJS](https://example.com)
-- [Nginx](https://example.com)
-- [AWS EC2](https://example.com)
+- [NodeJS](https://nodejs.org/en)
+- [ExpressJS](https://expressjs.com/)
+- [Nginx](https://www.nginx.com/)
+- [AWS EC2](https://aws.amazon.com/ec2/)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -85,13 +83,13 @@ npm install npm@latest -g
 1. Clone the repository:
 
 ```sh
-git clone https://github.com/your_username/repo_name.git
+git clone https://github.com/HoseaCodes/Storm-Gate
 ```
 
 2. Navigate to the project directory:
 
 ```sh
-cd repo_name
+cd Storm-Gate
 ```
 
 3. Install dependencies:
@@ -125,14 +123,14 @@ See Change Log
 
 Outline the future plans and enhancements you have for the project. You can list completed tasks and upcoming features.
 
-- [x] Feature 1
-- [x] Feature 2
-- [ ] Feature 3
-- [ ] Feature 4
+- [x] Deploy on EC2
+<!-- - [x] Feature 2 -->
+<!-- - [ ] Feature 3 -->
+<!-- - [ ] Feature 4
   - [ ] Sub Feature 1
-  - [ ] Sub Feature 2
+  - [ ] Sub Feature 2 -->
 
-See the [open issues](https://github.com/your_username/repo_name/issues) for a full list of proposed features and known issues.
+See the [open issues](https://github.com/your_username/Storm-Gate/issues) for a full list of proposed features and known issues.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -161,9 +159,9 @@ Distributed under the [MIT License](LICENSE). See `LICENSE` for more information
 <!-- CONTACT -->
 ## Contact
 
-- Your Name - [Your Twitter](https://twitter.com/your_username)
-- Email - your_email@example.com
-- Project Link: [https://github.com/your_username/repo_name](https://github.com/your_username/repo_name)
+- Name - [@DominiqueRHosea](https://twitter.com/DominiqueRHosea)
+- Email - info@ambitiousconcept.com
+- Project Link: [https://github.com/HoseaCodes/Storm-Gate](https://github.com/HoseaCodes/Storm-Gate)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -172,16 +170,12 @@ Distributed under the [MIT License](LICENSE). See `LICENSE` for more information
 
 List any resources, libraries, or tools that you used or were inspired by during the development of your project.
 
-- [Resource 1](https://example.com)
-- [Resource 2](https://example.com)
-* [Choose an Open Source License](https://choosealicense.com)
-* [GitHub Emoji Cheat Sheet](https://www.webpagefx.com/tools/emoji-cheat-sheet)
-* [Malven's Flexbox Cheatsheet](https://flexbox.malven.co/)
-* [Malven's Grid Cheatsheet](https://grid.malven.co/)
-* [Img Shields](https://shields.io)
-* [GitHub Pages](https://pages.github.com)
-* [Font Awesome](https://fontawesome.com)
-* [React Icons](https://react-icons.github.io/react-icons/search)
+* [Node-Cache](https://www.npmjs.com/package/node-cache)
+* [Imagemin](https://www.npmjs.com/package/imagemin)
+* [Bcrypt](https://www.npmjs.com/package/bcrypt)
+* [Jsonwebtoken](https://jwt.io/)
+* [PM2](https://pm2.keymetrics.io/)
+* [Mongoose](https://mongoosejs.com/)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
