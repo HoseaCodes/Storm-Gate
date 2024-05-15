@@ -11,6 +11,7 @@ import userRouter from './routes/user.js';
 import connectDB from './config/db.js';
 import {imageOp} from './utils/imageOp.js';
 import rateLimit from 'express-rate-limit';
+import basicAuth from 'express-basic-auth';
 
 dotenv.config();
 imageOp();
@@ -26,6 +27,13 @@ app.use(bodyParser.urlencoded({
 app.use(fileUpload({
     useTempFiles: true
 }));
+
+
+app.use(
+  basicAuth({
+    users: { admin: "supersecret" },
+  })
+);
 
 const limiter = rateLimit({
 	// windowMs: 15 * 60 * 1000, // 15 minutes
