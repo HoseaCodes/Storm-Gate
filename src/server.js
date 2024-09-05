@@ -53,7 +53,6 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "Server is up and running" });
 });
 
-// Put API routes here, before the "catch all" route
 app.use('/api', uploadRouter);
 app.use('/api/user', userRouter);
 

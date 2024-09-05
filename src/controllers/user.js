@@ -16,6 +16,7 @@ async function register(req, res) {
     // User is role 0
     // Admin is role 1
     const user = await User.findOne({ email });
+    
     if (user)
       return res
         .status(409)
