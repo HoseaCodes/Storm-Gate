@@ -12,6 +12,9 @@ import connectDB from './config/db.js';
 import {imageOp} from './utils/imageOp.js';
 import rateLimit from 'express-rate-limit';
 import basicAuth from 'express-basic-auth';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerOptions from './utils/swaggerOptions.js';
 
 dotenv.config();
 imageOp();
@@ -28,6 +31,10 @@ app.use(fileUpload({
     useTempFiles: true
 }));
 
+// Initialize swagger-jsdoc
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+// Serve swagger UI at /api-docs
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(
   basicAuth({
@@ -52,6 +59,7 @@ app.use(limiter);
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "Server is up and running" });
 });
+
 
 app.use('/api', uploadRouter);
 app.use('/api/user', userRouter);
