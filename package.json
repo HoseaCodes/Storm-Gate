@@ -31,6 +31,7 @@
     "mongoose": "^8.3.4",
     "morgan": "^1.10.0",
     "node-cache": "^5.1.2",
+    "openid-client": "^6.5.3",
     "path": "^0.12.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
