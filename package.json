@@ -38,6 +38,8 @@
     "winston": "^3.13.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "nodemon": "^3.1.0"
   }
 }
