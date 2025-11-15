@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.0.0...v1.1.0) (2025-11-15)
+
+### 🚀 Features
+
+* Implement Azure AD authentication and user approval workflow ([fd86b8e](https://github.com/HoseaCodes/Storm-Gate/commit/fd86b8e2d52ed28ffcd6d275cb4f317652feaba6))
+
 ## 1.0.0 (2025-06-20)
 
 ### 🚀 Features
