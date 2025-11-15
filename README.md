@@ -34,6 +34,7 @@
     <li><a href="#about-the-project">About The Project</a></li>
     <li><a href="#built-with">Built With</a></li>
     <li><a href="#getting-started">Getting Started</a></li>
+    <li><a href="#deployment">Deployment</a></li>
     <li><a href="#usage">Usage</a></li>
     <li><a href="#release-history">Release History</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
@@ -49,7 +50,9 @@
 ![IMG_9371](https://github.com/HoseaCodes/Storm-Gate/assets/66652422/bde9f6a2-e64a-4994-b278-5634eba75c2a)
 
 
-Storm Gate is an advanced authentication API service meticulously crafted with Node.js, offering unparalleled security and reliability for user authentication processes. Deployed on AWS EC2, it leverages the scalability and flexibility of the cloud to ensure seamless performance under any workload. With its intuitive interface and robust architecture, Storm Gate provides developers with a powerful tool to authenticate users with ease and confidence, safeguarding their applications from unauthorized access.
+Storm Gate is an advanced authentication API service meticulously crafted with Node.js, offering unparalleled security and reliability for user authentication processes. Now deployed on Fly.io with MongoDB Atlas, it leverages modern cloud infrastructure to ensure seamless performance, auto-scaling, and global availability. Featuring Azure AD integration for enterprise-grade authentication, the service provides developers with a powerful, production-ready tool to authenticate users with ease and confidence, safeguarding their applications from unauthorized access.
+
+**🌐 Live Application**: [https://storm-gate.fly.dev/](https://storm-gate.fly.dev/)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -59,8 +62,13 @@ List the technologies, frameworks, and libraries that you used in your project.
 
 - [NodeJS](https://nodejs.org/en)
 - [ExpressJS](https://expressjs.com/)
-- [Nginx](https://www.nginx.com/)
-- [AWS EC2](https://aws.amazon.com/ec2/)
+- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+- [Azure AD](https://azure.microsoft.com/en-us/services/active-directory/)
+- [Fly.io](https://fly.io/) - Current deployment platform
+- [Cloudinary](https://cloudinary.com/) - Image and video management
+- [JWT](https://jwt.io/) - JSON Web Tokens for authentication
+- ~~[Nginx](https://www.nginx.com/)~~ - Previously used
+- ~~[AWS EC2](https://aws.amazon.com/ec2/)~~ - Previously used
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -102,6 +110,116 @@ npm install
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
+<!-- DEPLOYMENT -->
+## Deployment
+
+Storm Gate is successfully deployed and running on [Fly.io](https://fly.io/) at **https://storm-gate.fly.dev/**
+
+### Live Application URLs
+
+- **🌐 Main Application**: [https://storm-gate.fly.dev/](https://storm-gate.fly.dev/)
+- **🏥 Health Check**: [https://storm-gate.fly.dev/health](https://storm-gate.fly.dev/health) ✅
+- **📚 API Documentation**: [https://storm-gate.fly.dev/api-docs](https://storm-gate.fly.dev/api-docs)
+
+### Common Deployment Issues & Solutions
+
+During deployment, we encountered and resolved several critical issues:
+
+#### 1. MongoDB Connection Error
+**Problem**: The app was trying to connect to `::1:27017` (localhost) instead of MongoDB Atlas.
+
+**Solution**: Properly configured the `MONGODB_URL` environment variable to point to the MongoDB Atlas cluster.
+
+#### 2. Network Binding Issue
+**Problem**: The server was not listening on the correct interface for containerized environments.
+
+**Solution**: Fixed the server to bind to `0.0.0.0:8080` instead of just `localhost`:
+
+```javascript
+// Fixed server binding in src/server.js
+app.listen(port, '0.0.0.0', function () {
+  console.log(`Express app running on port: ${port}`);
+});
+```
+
+#### 3. Docker Build Dependencies
+**Problem**: Native modules like `jpegtran-bin` required build tools for compilation.
+
+**Solution**: Updated Dockerfile to include necessary build dependencies:
+
+```dockerfile
+# Install build dependencies for native modules
+RUN apk add --no-cache \
+    gcc \
+    g++ \
+    make \
+    python3 \
+    autoconf \
+    automake \
+    libtool \
+    nasm \
+    libpng-dev \
+    libjpeg-turbo-dev
+```
+
+### Environment Variables
+
+The following environment variables are properly configured in production:
+
+- `MONGODB_URL` - MongoDB Atlas connection string
+- `ACCESS_TOKEN_SECRET` & `REFRESH_TOKEN_SECRET` - JWT token secrets
+- `TENANT_ID`, `CLIENT_ID`, `CLIENT_SECRET` - Azure AD configuration
+- `EMAIL_USER`, `EMAIL_PASS`, `ADMIN_EMAIL` - Email service configuration
+- `CLOUND_NAME`, `CLOUD_API_KEY`, `CLOUD_API_SECRET` - Cloudinary configuration
+- `BASE_URL`, `REDIRECT_URI` - Application URLs
+- `NODE_ENV` - Set to `production`
+
+### Deployment Features
+
+✅ **Auto-scaling**: Fly.io automatically starts machines when accessed and stops them when idle to save resources  
+✅ **Health Monitoring**: Built-in health checks ensure application reliability  
+✅ **Environment Security**: All sensitive data properly configured as encrypted secrets  
+✅ **Production Ready**: Optimized Docker build with security best practices  
+✅ **Azure AD Integration**: Full OAuth authentication flow configured for production  
+
+### Post-Deployment Requirements
+
+**Important**: After deployment, make sure to update your Azure AD app registration:
+
+1. Go to your Azure AD app registration
+2. Navigate to "Authentication" settings
+3. Add the production redirect URI: `https://storm-gate.fly.dev/auth/callback`
+4. Save the configuration
+
+### Monitoring & Maintenance
+
+Monitor your application using Fly.io CLI commands:
+
+```bash
+# Check application status
+flyctl status
+
+# View real-time logs
+flyctl logs
+
+# View application metrics
+flyctl info
+
+# SSH into running container (for debugging)
+flyctl ssh console
+```
+
+### Deployment Architecture
+
+- **Platform**: Fly.io (Global application platform)
+- **Runtime**: Node.js 18 (Alpine Linux container)
+- **Database**: MongoDB Atlas (Cloud database)
+- **Authentication**: Azure AD (Enterprise identity platform)
+- **File Storage**: Cloudinary (Image and video management)
+- **Email Service**: Gmail SMTP (Transactional emails)
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
 <!-- USAGE -->
 ## Usage
 
@@ -123,8 +241,14 @@ See [Change Log](CHANGELOG.md)
 
 Outline the future plans and enhancements you have for the project. You can list completed tasks and upcoming features.
 
-- [x] Deploy on EC2
-<!-- - [x] Feature 2 -->
+- [x] ~~Deploy on EC2~~ (Legacy deployment)
+- [x] **Deploy on Fly.io** (Current production deployment)
+- [x] **MongoDB Atlas Integration** (Cloud database)
+- [x] **Azure AD Authentication** (Enterprise identity)
+- [x] **Cloudinary Integration** (Image management)
+- [x] **Auto-scaling Infrastructure** (Fly.io machines)
+- [x] **Production Environment Variables** (Secure secrets management)
+- [x] **Health Monitoring & API Documentation** (Operational readiness)
 <!-- - [ ] Feature 3 -->
 <!-- - [ ] Feature 4
   - [ ] Sub Feature 1
