@@ -187,7 +187,6 @@ router.get("/refresh_token", userCtrl.refreshToken);
  *                     email:
  *                       type: string
  *                       example: user@example.com
- *                     // Add other user fields as needed
  *                 result:
  *                   type: integer
  *                   example: 1
@@ -213,11 +212,92 @@ router.get("/refresh_token", userCtrl.refreshToken);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Not allowed: You don't have enough permission to perform this action
+ *                   example: "Not allowed: You don't have enough permission to perform this action"
  *       500:
  *         description: Internal Server Error
  */
 router.get("/info", auth, nodecache, userCtrl.getUser);
+
+/**
+ * @swagger
+ * /api/user/me:
+ *   get:
+ *     summary: Get current user information and approval status
+ *     description: Returns the current user's information including their approval status (PENDING, APPROVED, or DENIED)
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "507f1f77bcf86cd799439011"
+ *                     name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     email:
+ *                       type: string
+ *                       example: "john@example.com"
+ *                     username:
+ *                       type: string
+ *                       example: "johndoe"
+ *                     role:
+ *                       type: string
+ *                       example: "user"
+ *                     status:
+ *                       type: string
+ *                       enum: [PENDING, APPROVED, DENIED]
+ *                       example: "APPROVED"
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "Invalid token: user ID not found"
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "User not found"
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "Server error message"
+ */
+router.get("/me", auth, userCtrl.getMe);
 
 // router.patch('/addcart', auth, addCart);
 
@@ -268,7 +348,6 @@ router.get("/info", auth, nodecache, userCtrl.getUser);
  *                     bio:
  *                       type: string
  *                       example: Software Developer
- *                     // Add other user fields as needed
  *                 msg:
  *                   type: string
  *                   example: Added Profile Successful
@@ -337,7 +416,6 @@ router.post("/create", userCtrl.addProfile);
  *                     email:
  *                       type: string
  *                       example: user@example.com
- *                     // Add other user fields as needed
  *                 status:
  *                   type: string
  *                   example: Successful
@@ -350,7 +428,7 @@ router.post("/create", userCtrl.addProfile);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Not allowed: You don't have enough permission to perform this action
+ *                   example: "Not allowed: You don't have enough permission to perform this action"
  *       401:
  *         description: Unauthorized - Permission denied
  *         content:
@@ -360,7 +438,7 @@ router.post("/create", userCtrl.addProfile);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Not allowed: You don't have enough permission to perform this action
+ *                   example: "Not allowed: You don't have enough permission to perform this action"
  *       500:
  *         description: Internal Server Error
  */
@@ -395,7 +473,6 @@ router.route("/edit/:id").put(userCtrl.updateProfile);
  *                       email:
  *                         type: string
  *                         example: user@example.com
- *                       // Add other user fields as needed
  *                 unregisteredUser:
  *                   type: array
  *                   items:
@@ -407,7 +484,6 @@ router.route("/edit/:id").put(userCtrl.updateProfile);
  *                       email:
  *                         type: string
  *                         example: unregistered@example.com
- *                       // Add other unregistered user fields as needed
  *                 allUsers:
  *                   type: array
  *                   items:
@@ -421,7 +497,6 @@ router.route("/edit/:id").put(userCtrl.updateProfile);
  *                         email:
  *                           type: string
  *                           example: user@example.com
- *                         // Add other user fields as needed
  *                 result:
  *                   type: integer
  *                   example: 42
@@ -437,7 +512,7 @@ router.route("/edit/:id").put(userCtrl.updateProfile);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Not allowed: You don't have enough permission to perform this action
+ *                   example: "Not allowed: You don't have enough permission to perform this action"
  *       401:
  *         description: Unauthorized - Permission denied
  *         content:
@@ -447,7 +522,7 @@ router.route("/edit/:id").put(userCtrl.updateProfile);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Not allowed: You don't have enough permission to perform this action
+ *                   example: "Not allowed: You don't have enough permission to perform this action"
  *       500:
  *         description: Internal Server Error
  */
@@ -477,7 +552,6 @@ router.get("/", userCtrl.getAllUsers);
  *                   email:
  *                     type: string
  *                     example: user@example.com
- *                   // Add other user fields as needed
  *       404:
  *         description: Not Found - No users found
  *         content:
@@ -511,7 +585,6 @@ router.get("/users", userCtrl.getUsers);
  *                 type: string
  *               password:
  *                 type: string
- *               // Add other user fields as needed
  *     responses:
  *       201:
  *         description: Successfully added the new user
@@ -529,7 +602,6 @@ router.get("/users", userCtrl.getUsers);
  *                 email:
  *                   type: string
  *                   example: user@example.com
- *                 // Add other user fields as needed
  *       409:
  *         description: Conflict - User already exists
  *         content:
@@ -572,7 +644,6 @@ router.post("/add", userCtrl.addUser);
  *                 email:
  *                   type: string
  *                   example: user@example.com
- *                 // Add other user fields as needed
  *       404:
  *         description: Not Found - User does not exist
  *         content:
@@ -613,7 +684,6 @@ router.post("/add", userCtrl.addUser);
  *                 type: string
  *               password:
  *                 type: string
- *               // Add other user fields as needed
  *     responses:
  *       201:
  *         description: Successfully updated the user
@@ -631,7 +701,6 @@ router.post("/add", userCtrl.addUser);
  *                 email:
  *                   type: string
  *                   example: user@example.com
- *                 // Add other user fields as needed
  *       409:
  *         description: Conflict - Update failed
  *         content:

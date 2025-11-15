@@ -19,7 +19,21 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: function() {
+        // Password is required only for local authentication
+        return !this.azureUserId;
+      },
+    },
+    azureUserId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple null values
+      index: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "azure-ad"],
+      default: "local",
     },
     avatar: {
       type: Object,
@@ -35,6 +49,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "basic",
       enum: ["basic", "superAdmin", "admin"],
+    },
+    status: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "DENIED"],
+      default: "APPROVED", // Default to APPROVED for backward compatibility
     },
     application: {
       type: String,

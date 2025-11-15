@@ -114,7 +114,7 @@ For more examples, please refer to the [Documentation](https://example.com).
 <!-- RELEASE -->
 ## Release History
 
-See Change Log
+See [Change Log](CHANGELOG.md)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

@@ -7,6 +7,7 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import uploadRouter from './routes/upload.js';
 import userRouter from './routes/user.js';
+import authRouter from './routes/auth.js';
 import connectDB from './config/db.js';
 import { imageOp } from './utils/imageOp.js';
 import rateLimit from 'express-rate-limit';
@@ -16,6 +17,8 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerOptions from './utils/swaggerOptions.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import userController from './controllers/user.js';
+import auth from './utils/auth.js';
 
 dotenv.config();
 imageOp();
@@ -167,13 +170,22 @@ const verifyJWT = async (req, res, next) => {
   }
 };
 
+app.use('/auth', authRouter);
+// Public registration endpoint (no JWT required)
+app.post('/register', userController.register);
+// Public login endpoint (no JWT required)
+app.post('/login', userController.login);
+// Public status check endpoint (no JWT required)
+app.post('/check-status', userController.checkUserStatus);
+// Protected me endpoint (JWT required) - using local auth
+app.get('/me', auth, userController.getMe);
 app.use('/api', verifyJWT, uploadRouter);
 app.use('/api/user', verifyJWT, userRouter);
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 8080;
 const startServer = async () => {
   await connectDB();
-  app.listen(port, function () {
+  app.listen(port, '0.0.0.0', function () {
     console.log(`Express app running on port: ${port}`);
   });
 };
