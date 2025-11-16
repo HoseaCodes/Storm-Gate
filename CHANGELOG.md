@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.1.0...v1.2.0) (2025-11-16)
+
+### 🚀 Features
+
+* Refactor deployment and configuration for Lambda compatibility ([98d7021](https://github.com/HoseaCodes/Storm-Gate/commit/98d70218f2c3479b8fb216d889b4a589685d4656))
+
+### 📚 Documentation
+
+* Update README to include deployment details and common issues ([dc7266a](https://github.com/HoseaCodes/Storm-Gate/commit/dc7266a1a172cfe4162a23fefd978ba62ac48862))
+
 ## [1.1.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.0.0...v1.1.0) (2025-11-15)
 
 ### 🚀 Features
