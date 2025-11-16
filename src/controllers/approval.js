@@ -1,6 +1,6 @@
 import User from "../models/user.js";
 import { verifyApprovalToken, sendAccountApprovedEmail, sendAccountDeniedEmail, sendApprovalEmail } from "../utils/email.js";
-import Logger from "../utils/logger.js";
+import Logger from "../utils/logger-lambda.js";
 
 const logger = new Logger("approval");
 

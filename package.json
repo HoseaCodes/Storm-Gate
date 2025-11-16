@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "start:lambda": "node src/lambda-app.js",
     "dev": "nodemon src/server.js",
+    "dev:lambda": "nodemon src/lambda-app.js",
     "secrets": "sh scripts/getEnvVars.sh",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:oidc": "node test-oidc.js",
@@ -37,6 +39,7 @@
     "nodemailer": "^7.0.10",
     "openid-client": "^6.5.3",
     "path": "^0.12.7",
+    "serverless-http": "^3.2.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.13.0"

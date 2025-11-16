@@ -50,9 +50,9 @@
 ![IMG_9371](https://github.com/HoseaCodes/Storm-Gate/assets/66652422/bde9f6a2-e64a-4994-b278-5634eba75c2a)
 
 
-Storm Gate is an advanced authentication API service meticulously crafted with Node.js, offering unparalleled security and reliability for user authentication processes. Now deployed on Fly.io with MongoDB Atlas, it leverages modern cloud infrastructure to ensure seamless performance, auto-scaling, and global availability. Featuring Azure AD integration for enterprise-grade authentication, the service provides developers with a powerful, production-ready tool to authenticate users with ease and confidence, safeguarding their applications from unauthorized access.
+Storm Gate is an advanced authentication API service meticulously crafted with Node.js, offering unparalleled security and reliability for user authentication processes. Now deployed on AWS Lambda with MongoDB Atlas, it leverages modern serverless infrastructure to ensure seamless performance, auto-scaling, and global availability. Featuring Azure AD integration for enterprise-grade authentication, the service provides developers with a powerful, production-ready tool to authenticate users with ease and confidence, safeguarding their applications from unauthorized access.
 
-**🌐 Live Application**: [https://storm-gate.fly.dev/](https://storm-gate.fly.dev/)
+**🌐 Live Application**: Deployed on AWS Lambda (Serverless)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -64,7 +64,7 @@ List the technologies, frameworks, and libraries that you used in your project.
 - [ExpressJS](https://expressjs.com/)
 - [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 - [Azure AD](https://azure.microsoft.com/en-us/services/active-directory/)
-- [Fly.io](https://fly.io/) - Current deployment platform
+- [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless deployment platform
 - [Cloudinary](https://cloudinary.com/) - Image and video management
 - [JWT](https://jwt.io/) - JSON Web Tokens for authentication
 - ~~[Nginx](https://www.nginx.com/)~~ - Previously used
@@ -113,13 +113,29 @@ npm install
 <!-- DEPLOYMENT -->
 ## Deployment
 
-Storm Gate is successfully deployed and running on [Fly.io](https://fly.io/) at **https://storm-gate.fly.dev/**
+Storm Gate is successfully deployed and running on **AWS Lambda** (Serverless)
 
-### Live Application URLs
+### Deployment Information
 
-- **🌐 Main Application**: [https://storm-gate.fly.dev/](https://storm-gate.fly.dev/)
-- **🏥 Health Check**: [https://storm-gate.fly.dev/health](https://storm-gate.fly.dev/health) ✅
-- **📚 API Documentation**: [https://storm-gate.fly.dev/api-docs](https://storm-gate.fly.dev/api-docs)
+- **🌐 Platform**: AWS Lambda (Serverless)
+- **🏥 Health Check**: Available via Lambda function invocation
+- **📚 API Documentation**: Available via Lambda function endpoints
+- **🚀 Deployment**: One-command deployment with `./deploy-lambda-complete.sh`
+
+### Quick Deployment Commands
+
+```bash
+# Clean up any existing resources and deploy fresh
+./cleanup-lambda.sh --force
+./deploy-lambda-complete.sh
+```
+
+### Lambda Only Updates
+
+```bash
+# Update Lambda function only, keep existing API Gateway
+./deploy-lambda-complete.sh --skip-api-gateway
+```
 
 ### Common Deployment Issues & Solutions
 
@@ -176,10 +192,10 @@ The following environment variables are properly configured in production:
 
 ### Deployment Features
 
-✅ **Auto-scaling**: Fly.io automatically starts machines when accessed and stops them when idle to save resources  
-✅ **Health Monitoring**: Built-in health checks ensure application reliability  
-✅ **Environment Security**: All sensitive data properly configured as encrypted secrets  
-✅ **Production Ready**: Optimized Docker build with security best practices  
+✅ **Auto-scaling**: AWS Lambda automatically scales from 0 to thousands of requests  
+✅ **Health Monitoring**: CloudWatch monitoring and logging built-in  
+✅ **Environment Security**: All sensitive data properly configured as Lambda environment variables  
+✅ **Production Ready**: Optimized Docker container with Lambda runtime  
 ✅ **Azure AD Integration**: Full OAuth authentication flow configured for production  
 
 ### Post-Deployment Requirements
@@ -188,35 +204,36 @@ The following environment variables are properly configured in production:
 
 1. Go to your Azure AD app registration
 2. Navigate to "Authentication" settings
-3. Add the production redirect URI: `https://storm-gate.fly.dev/auth/callback`
+3. Add your Lambda function URL or API Gateway URL for the redirect URI
 4. Save the configuration
 
 ### Monitoring & Maintenance
 
-Monitor your application using Fly.io CLI commands:
+Monitor your application using AWS CLI and CloudWatch:
 
 ```bash
-# Check application status
-flyctl status
+# Check Lambda function status
+aws lambda get-function --function-name storm-gate --region us-east-1
 
 # View real-time logs
-flyctl logs
+aws logs tail /aws/lambda/storm-gate --follow --region us-east-1
 
-# View application metrics
-flyctl info
+# Test Lambda function
+aws lambda invoke --function-name storm-gate --payload '{"httpMethod":"GET","path":"/health"}' response.json
 
-# SSH into running container (for debugging)
-flyctl ssh console
+# Deploy updates
+./deploy-lambda-complete.sh
 ```
 
 ### Deployment Architecture
 
-- **Platform**: Fly.io (Global application platform)
-- **Runtime**: Node.js 18 (Alpine Linux container)
+- **Platform**: AWS Lambda (Serverless computing platform)
+- **Runtime**: Node.js 18 (Lambda container runtime)
 - **Database**: MongoDB Atlas (Cloud database)
 - **Authentication**: Azure AD (Enterprise identity platform)
 - **File Storage**: Cloudinary (Image and video management)
 - **Email Service**: Gmail SMTP (Transactional emails)
+- **Container Registry**: AWS ECR (Elastic Container Registry)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -242,11 +259,11 @@ See [Change Log](CHANGELOG.md)
 Outline the future plans and enhancements you have for the project. You can list completed tasks and upcoming features.
 
 - [x] ~~Deploy on EC2~~ (Legacy deployment)
-- [x] **Deploy on Fly.io** (Current production deployment)
+- [x] **Deploy on AWS Lambda** (Current serverless deployment)
 - [x] **MongoDB Atlas Integration** (Cloud database)
 - [x] **Azure AD Authentication** (Enterprise identity)
 - [x] **Cloudinary Integration** (Image management)
-- [x] **Auto-scaling Infrastructure** (Fly.io machines)
+- [x] **Auto-scaling Infrastructure** (AWS Lambda serverless)
 - [x] **Production Environment Variables** (Secure secrets management)
 - [x] **Health Monitoring & API Documentation** (Operational readiness)
 <!-- - [ ] Feature 3 -->

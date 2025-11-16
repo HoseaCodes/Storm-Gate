@@ -1,0 +1,61 @@
+# AWS Lambda Container Runtime for Node.js 18
+FROM public.ecr.aws/lambda/nodejs:18
+
+# Set working directory
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Install build dependencies for native modules (like jpegtran-bin)
+# Note: Lambda runtime already has many build tools, but we need some specific ones
+RUN yum update -y && \
+    yum install -y \
+    gcc-c++ \
+    make \
+    autoconf \
+    automake \
+    libtool \
+    nasm \
+    libpng-devel \
+    libjpeg-turbo-devel && \
+    yum clean all
+
+# Copy package files first for better Docker layer caching
+COPY package*.json ./
+
+# Install production dependencies only
+# Use npm ci for faster, reliable, reproducible builds
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy application source code
+COPY src/ ./src/
+
+# Copy Lambda handler entry point
+COPY lambda-handler.js ./
+
+# Copy environment configuration (if needed)
+# Note: In production, use AWS Systems Manager Parameter Store or Secrets Manager
+COPY .env.example ./.env.example
+
+# Create /tmp directory with proper permissions for file uploads
+RUN mkdir -p /tmp && chmod 777 /tmp
+
+# Lambda runtime will set the handler, but we can specify it here for clarity
+# The handler format is: filename.exportedHandlerFunction
+CMD ["lambda-handler.handler"]
+
+# Health check is not needed for Lambda (API Gateway handles this)
+# But we can add a simple validation
+RUN node -e "console.log('Lambda container build successful')"
+
+# Labels for better container management
+LABEL maintainer="Dominique Hosea"
+LABEL description="Storm Gate API - AWS Lambda Container"
+LABEL version="1.0.0"
+LABEL environment="lambda"
+
+# Lambda-specific optimizations:
+# 1. No EXPOSE needed (API Gateway handles routing)
+# 2. No USER needed (Lambda runtime handles security)
+# 3. No HEALTHCHECK needed (API Gateway handles health)
+# 4. Minimal layers for faster cold starts
+# 5. Production dependencies only

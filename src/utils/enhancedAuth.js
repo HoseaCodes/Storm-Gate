@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/user.js';
-import Logger from './logger.js';
+import Logger from './logger-lambda.js';
 
 const logger = new Logger('auth-middleware');
 

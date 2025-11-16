@@ -1,23 +1,52 @@
+# Dependencies
 node_modules
 npm-debug.log
+
+# Environment files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Git and version control
 .git
 .gitignore
+.github
+
+# Documentation
 README.md
+*.md
+docs
+
+# Testing and coverage
 .nyc_output
 coverage
-.nyc_output
 .coverage
-.cache
+test
+*.test.js
+*.spec.js
+
+# Logs
 logs
 *.log
+
+# IDE and editor files
 .DS_Store
 .vscode
 .idea
 *.swp
 *.swo
-fly.toml
+
+# Deployment files
+docker-compose.yml
+deploy-lambda-complete.sh
+
+# Cache and temporary files
+.cache
+.tmp
+.temp
+
+# Build artifacts
+dist
+build

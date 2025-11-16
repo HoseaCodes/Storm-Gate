@@ -2,7 +2,7 @@ import * as oauth from 'openid-client';
 import jwt from 'jsonwebtoken';
 import User from "../models/user.js";
 import BlogUser from "../models/blogUser.js";
-import Logger from "../utils/logger.js";
+import Logger from "../utils/logger-lambda.js";
 import { cache } from "../utils/cache.js";
 
 const logger = new Logger("auth");

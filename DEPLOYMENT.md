@@ -1,14 +1,22 @@
-# Storm Gate - Fly.io Deployment Guide
+# Storm Gate - AWS Lambda Deployment Guide
 
 ## Prerequisites
 
-1. Fly.io CLI installed ✅
-2. Fly.io account and logged in ✅
-3. App created: `storm-gate` ✅
+1. AWS CLI installed and configured ✅
+2. Docker installed ✅
+3. AWS account with appropriate permissions ✅
+
+## Quick Deployment
+
+Simply run the complete deployment script:
+
+```bash
+./deploy-lambda-complete.sh
+```
 
 ## Required Environment Variables
 
-Your application requires the following environment variables to be set as Fly.io secrets:
+Your application requires the following environment variables (automatically loaded from `.env` file):
 
 ### Database
 - `MONGODB_URL` - MongoDB connection string (e.g., from MongoDB Atlas)
@@ -37,75 +45,84 @@ Your application requires the following environment variables to be set as Fly.i
 - `CLOUD_API_SECRET` - Cloudinary API secret
 
 ### Application URLs
-- `BASE_URL` - Your app's base URL (will be: https://storm-gate.fly.dev)
-- `REDIRECT_URI` - OAuth redirect URI (will be: https://storm-gate.fly.dev/auth/callback)
+- `BASE_URL` - Your Lambda function URL or API Gateway URL
+- `REDIRECT_URI` - OAuth redirect URI for your Lambda deployment
 
 ## Setup Instructions
 
-### Option 1: Use the automated script
+### Automated Deployment (Recommended)
 ```bash
-./deploy-to-fly.sh
+# Ensure your .env file has all required variables
+./deploy-lambda-complete.sh
 ```
 
-### Option 2: Manual setup
+### Manual Steps (if needed)
 
-1. Set each secret individually:
+1. Configure AWS credentials:
 ```bash
-flyctl secrets set MONGODB_URL="your_mongodb_connection_string"
-flyctl secrets set CLIENT_ID="your_azure_client_id"
-flyctl secrets set CLIENT_SECRET="your_azure_client_secret"
-flyctl secrets set TENANT_ID="your_azure_tenant_id"
-flyctl secrets set ACCESS_TOKEN_SECRET="your_generated_secret"
-flyctl secrets set REFRESH_TOKEN_SECRET="your_generated_secret"
-flyctl secrets set JWT_SECRET="your_generated_secret"
-flyctl secrets set EMAIL_HOST="smtp.gmail.com"
-flyctl secrets set EMAIL_PORT="465"
-flyctl secrets set EMAIL_USER="your_email@gmail.com"
-flyctl secrets set EMAIL_PASS="your_email_password"
-flyctl secrets set ADMIN_EMAIL="admin@yourdomain.com"
-flyctl secrets set CLOUND_NAME="your_cloudinary_cloud_name"
-flyctl secrets set CLOUD_API_KEY="your_cloudinary_api_key"
-flyctl secrets set CLOUD_API_SECRET="your_cloudinary_api_secret"
-flyctl secrets set BASE_URL="https://storm-gate.fly.dev"
-flyctl secrets set REDIRECT_URI="https://storm-gate.fly.dev/auth/callback"
-flyctl secrets set NODE_ENV="production"
+aws configure
 ```
 
-2. Deploy the application:
+2. Set environment variables in `.env` file:
 ```bash
-flyctl deploy
+MONGODB_URL="your_mongodb_connection_string"
+CLIENT_ID="your_azure_client_id"
+CLIENT_SECRET="your_azure_client_secret"
+TENANT_ID="your_azure_tenant_id"
+ACCESS_TOKEN_SECRET="your_generated_secret"
+REFRESH_TOKEN_SECRET="your_generated_secret"
+EMAIL_USER="info@ambitiousconcept.com"
+EMAIL_PASS="your_email_password"
+ADMIN_EMAIL="admin@yourdomain.com"
+CLOUDINARY_CLOUD_NAME="your_cloudinary_cloud_name"
+CLOUDINARY_API_KEY="your_cloudinary_api_key"
+CLOUDINARY_API_SECRET="your_cloudinary_api_secret"
+NODE_ENV="production"
+```
+
+3. Deploy to Lambda:
+```bash
+./deploy-lambda-complete.sh
 ```
 
 ## Post-Deployment Steps
 
 1. **Update Azure AD App Registration:**
    - Go to your Azure AD app registration
-   - Add `https://storm-gate.fly.dev/auth/callback` to the redirect URIs
+   - Add your Lambda function URL or API Gateway URL to the redirect URIs
 
-2. **Test your application:**
-   - Health check: `https://storm-gate.fly.dev/health`
-   - API docs: `https://storm-gate.fly.dev/api-docs`
+2. **Test your Lambda function:**
+   ```bash
+   # Health check
+   aws lambda invoke --function-name storm-gate --payload '{"httpMethod":"GET","path":"/health"}' response.json
+   
+   # API docs
+   aws lambda invoke --function-name storm-gate --payload '{"httpMethod":"GET","path":"/api-docs"}' response.json
+   ```
 
 3. **Monitor your application:**
    ```bash
-   flyctl logs
-   flyctl status
+   # View logs
+   aws logs tail /aws/lambda/storm-gate --follow --region us-east-1
+   
+   # Check function status
+   aws lambda get-function --function-name storm-gate --region us-east-1
    ```
 
 ## Useful Commands
 
-- View current secrets: `flyctl secrets list`
-- View app info: `flyctl info`
-- View logs: `flyctl logs`
-- SSH into container: `flyctl ssh console`
-- Scale app: `flyctl scale count 1`
+- View function configuration: `aws lambda get-function-configuration --function-name storm-gate`
+- View environment variables: `aws lambda get-function-configuration --function-name storm-gate --query 'Environment.Variables'`
+- View logs: `aws logs tail /aws/lambda/storm-gate --follow --region us-east-1`
+- Update function: `./deploy-lambda-complete.sh`
+- Test function: `aws lambda invoke --function-name storm-gate --payload '{"httpMethod":"GET","path":"/health"}' response.json`
 
 ## Troubleshooting
 
 If deployment fails:
-1. Check logs: `flyctl logs`
-2. Verify all secrets are set: `flyctl secrets list`
-3. Test locally first: `npm start`
+1. Check CloudWatch logs: `aws logs tail /aws/lambda/storm-gate --region us-east-1`
+2. Verify environment variables are set: `aws lambda get-function-configuration --function-name storm-gate --query 'Environment.Variables'`
+3. Test locally first: `npm run start:lambda`
 4. Check the health endpoint after deployment
 
 ## MongoDB Setup
@@ -115,5 +132,5 @@ If you don't have MongoDB Atlas set up:
 1. Go to [MongoDB Atlas](https://cloud.mongodb.com)
 2. Create a free cluster
 3. Create a database user
-4. Whitelist all IPs (0.0.0.0/0) for Fly.io deployment
+4. Whitelist all IPs (0.0.0.0/0) for AWS Lambda deployment
 5. Get your connection string and set it as `MONGODB_URL`

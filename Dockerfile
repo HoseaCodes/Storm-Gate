@@ -33,7 +33,7 @@ COPY . .
 RUN chown -R nextjs:nodejs /app
 USER nextjs
 
-# Expose the port the app runs on (Fly.io uses 8080 internally)
+# Expose the port the app runs on
 EXPOSE 8080
 
 # Add health check

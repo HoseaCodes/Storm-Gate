@@ -1,6 +1,6 @@
 import User from "../models/user.js";
 // import Payments from "../models/payment.js";
-import Logger from "../utils/logger.js";
+import Logger from "../utils/logger-lambda.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { cache } from "../utils/cache.js";

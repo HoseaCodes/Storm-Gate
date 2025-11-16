@@ -1,5 +1,5 @@
 import NodeCache from 'node-cache';
-import Logger from '../utils/logger.js';
+import Logger from '../utils/logger-lambda.js';
 
 const logger = new Logger('cache')
 

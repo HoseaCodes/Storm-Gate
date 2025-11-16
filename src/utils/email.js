@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
-import Logger from './logger.js';
+import Logger from './logger-lambda.js';
 
 const logger = new Logger('email');
 

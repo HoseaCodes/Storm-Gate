@@ -1,0 +1,15 @@
+{
+  "httpMethod": "GET",
+  "path": "/api-docs",
+  "headers": {
+    "Content-Type": "application/json",
+    "Accept": "text/html"
+  },
+  "queryStringParameters": null,
+  "body": null,
+  "isBase64Encoded": false,
+  "requestContext": {
+    "httpMethod": "GET",
+    "path": "/api-docs"
+  }
+}

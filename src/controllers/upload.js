@@ -2,7 +2,7 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import cloudinary from '../config/cloudinary.js';
 import Image from '../models/image.js';
-import Logger from '../utils/logger.js';
+import Logger from '../utils/logger-lambda.js';
 import { cache } from '../utils/cache.js';
 
 const logger = new Logger('articles');

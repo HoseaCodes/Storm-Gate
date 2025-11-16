@@ -1,0 +1,1 @@
+{"statusCode":200,"headers":{"x-powered-by":"Express","access-control-allow-origin":"*","content-type":"application/json; charset=utf-8","content-length":"99","etag":"W/\"63-RBrnw9VDXCC5PsLk5yxJHBZsme0\""},"isBase64Encoded":false,"body":"{\"status\":\"Server is up and running\",\"environment\":\"Lambda\",\"timestamp\":\"2025-11-16T05:57:49.355Z\"}"}
