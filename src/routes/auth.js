@@ -308,31 +308,5 @@ router.post('/manual-approve', enhancedVerifyJWT, approvalController.manuallyApp
  */
 router.post('/manual-deny', enhancedVerifyJWT, approvalController.manuallyDenyUser);
 
-/**
- * @swagger
- * /auth/test-email:
- *   post:
- *     summary: Test email configuration
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               name:
- *                 type: string
- *     responses:
- *       200:
- *         description: Email sent successfully
- *       400:
- *         description: Email configuration error
- *       500:
- *         description: Server error
- */
-router.post('/test-email', approvalController.testEmail);
 
 export default router;

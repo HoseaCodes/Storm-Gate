@@ -1,5 +1,5 @@
 import User from "../models/user.js";
-import { verifyApprovalToken, sendAccountApprovedEmail, sendAccountDeniedEmail, sendApprovalEmail } from "../utils/email.js";
+import { verifyApprovalToken, sendAccountApprovedEmail, sendAccountDeniedEmail } from "../utils/email.js";
 import Logger from "../utils/logger-lambda.js";
 
 const logger = new Logger("approval");
@@ -236,59 +236,13 @@ async function manuallyDenyUser(req, res) {
   }
 }
 
-/**
- * Test email functionality
- * POST /auth/test-email
- */
-async function testEmail(req, res) {
-  try {
-    const { email, name } = req.body;
-
-    if (!email || !name) {
-      return res.status(400).json({ error: 'Email and name are required' });
-    }
-
-    // Test sending approval email
-    logger.info(`Testing email functionality for: ${email}`);
-    const emailSent = await sendApprovalEmail({ email, name });
-
-    if (emailSent) {
-      res.json({
-        success: true,
-        message: `Test approval email sent successfully to ${process.env.ADMIN_EMAIL || 'admin@stormgate.com'}`,
-        emailConfig: {
-          fromEmail: process.env.EMAIL_USER ? 'Configured' : 'Not configured',
-          password: process.env.EMAIL_PASS ? 'Configured' : 'Not configured',
-          adminEmail: process.env.ADMIN_EMAIL || 'Using default: admin@stormgate.com',
-          baseUrl: process.env.BASE_URL || 'Using default: http://localhost:3001'
-        }
-      });
-    } else {
-      res.status(400).json({
-        error: 'Failed to send email',
-        message: 'Check server logs for detailed error information',
-        emailConfig: {
-          fromEmail: process.env.EMAIL_USER ? 'Configured' : 'Not configured',
-          password: process.env.EMAIL_PASS ? 'Configured' : 'Not configured',
-          adminEmail: process.env.ADMIN_EMAIL || 'Using default: admin@stormgate.com',
-          baseUrl: process.env.BASE_URL || 'Using default: http://localhost:3001'
-        }
-      });
-    }
-
-  } catch (error) {
-    logger.error('Error in email test:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
-  }
-}
-
 const approvalController = {
   approveUser,
   denyUser,
   getPendingUsers,
   manuallyApproveUser,
   manuallyDenyUser,
-  testEmail
+  
 };
 
 export default approvalController;
