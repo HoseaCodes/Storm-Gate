@@ -11,7 +11,7 @@ class EmailDelegate {
 
   async sendEmail(emailData) {
     try {
-      const response = await axios.post(`http://localhost:8080/auth/send-email`, emailData);
+      const response = await axios.post(`${EMAIL_INTEGRATOR_BASE_URL}/auth/send-email`, emailData);
       
       // Return success result with proper structure
       return {
@@ -195,3 +195,8 @@ export const {
   sendRegistrationPending,
   getTemplateInfo
 } = emailDelegate;
+
+const EMAIL_INTEGRATOR_BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? 'http://email-integrator-prod.eba-p4bnt2xm.us-east-1.elasticbeanstalk.com'
+    : 'http://localhost:8080';
