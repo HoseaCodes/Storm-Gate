@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.2.0...v1.3.0) (2025-11-18)
+
+### 🚀 Features
+
+* replace nodemailer with new email delegate system using axios ([5bb4349](https://github.com/HoseaCodes/Storm-Gate/commit/5bb4349f18a9e185f0e06c319be20202251f803e))
+
+### 🐛 Bug Fixes
+
+* **email:** update email sending endpoint to use dynamic base URL ([139cfe3](https://github.com/HoseaCodes/Storm-Gate/commit/139cfe3dd5241de7ebe27e8d2499d13577bbfaba))
+
 ## [1.2.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.1.0...v1.2.0) (2025-11-16)
 
 ### 🚀 Features
