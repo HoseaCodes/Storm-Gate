@@ -763,5 +763,127 @@ router
   .put(loginRequired, userCtrl.updateProfile)
   .delete(loginRequired, userCtrl.deleteProfile);
 
+/**
+ * @swagger
+ * /api/user/forgot-password:
+ *   post:
+ *     summary: Request password reset
+ *     description: Request a password reset email with a reset token
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: Password reset email sent (if account exists)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: If an account with that email exists, a password reset link has been sent.
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *       400:
+ *         description: Bad request - email required or Azure AD user
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post("/forgot-password", userCtrl.requestPasswordReset);
+
+/**
+ * @swagger
+ * /api/user/reset-password/{token}:
+ *   get:
+ *     summary: Verify password reset token
+ *     description: Verify if a password reset token is valid
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Password reset token from email
+ *     responses:
+ *       200:
+ *         description: Token is valid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Token is valid
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 email:
+ *                   type: string
+ *                   example: user@example.com
+ *       400:
+ *         description: Invalid or expired token
+ *       500:
+ *         description: Internal Server Error
+ *   post:
+ *     summary: Reset password with token
+ *     description: Reset user password using a valid reset token
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Password reset token from email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *                 example: newSecurePassword123
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: Password has been successfully reset. You can now login with your new password.
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *       400:
+ *         description: Invalid or expired token, or invalid password
+ *       500:
+ *         description: Internal Server Error
+ */
+router.get("/reset-password/:token", userCtrl.verifyResetToken);
+router.post("/reset-password/:token", userCtrl.resetPassword);
 
 export default router;

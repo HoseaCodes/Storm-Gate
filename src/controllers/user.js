@@ -589,6 +589,185 @@ async function checkUserStatus(req, res) {
   }
 }
 
+/**
+ * Request password reset
+ * POST /api/user/forgot-password
+ */
+async function requestPasswordReset(req, res) {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ msg: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    
+    // Don't reveal if user exists or not for security
+    if (!user) {
+      return res.json({ 
+        msg: "If an account with that email exists, a password reset link has been sent.",
+        status: "success"
+      });
+    }
+
+    // Check if user uses Azure AD authentication
+    if (user.authProvider === 'azure-ad') {
+      return res.status(400).json({ 
+        msg: "This account uses Azure AD authentication. Please reset your password through your organization's Azure AD portal."
+      });
+    }
+
+    // Generate reset token (valid for 1 hour)
+    const resetToken = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Save hashed token to database
+    const hashedToken = await bcrypt.hash(resetToken, 10);
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    await user.save();
+
+    // Send password reset email
+    const { sendPasswordResetEmail } = await import('../utils/email.js');
+    await sendPasswordResetEmail({
+      email: user.email,
+      name: user.name,
+      resetToken
+    });
+
+    logger.info(`Password reset requested for user: ${email}`);
+    
+    res.json({ 
+      msg: "If an account with that email exists, a password reset link has been sent.",
+      status: "success"
+    });
+  } catch (err) {
+    logger.error('Request password reset error:', err);
+    return res.status(500).json({ msg: "Failed to process password reset request" });
+  }
+}
+
+/**
+ * Verify reset token
+ * GET /api/user/reset-password/:token
+ */
+async function verifyResetToken(req, res) {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({ msg: "Reset token is required" });
+    }
+
+    // Verify JWT token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    } catch (err) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Find user and check if token is still valid
+    const user = await User.findById(decoded.id);
+    
+    if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Check if token has expired
+    if (Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ msg: "Reset token has expired" });
+    }
+
+    // Verify the token matches
+    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
+    if (!isValid) {
+      return res.status(400).json({ msg: "Invalid reset token" });
+    }
+
+    res.json({ 
+      msg: "Token is valid",
+      status: "success",
+      email: user.email
+    });
+  } catch (err) {
+    logger.error('Verify reset token error:', err);
+    return res.status(500).json({ msg: "Failed to verify reset token" });
+  }
+}
+
+/**
+ * Reset password
+ * POST /api/user/reset-password/:token
+ */
+async function resetPassword(req, res) {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ msg: "Reset token is required" });
+    }
+
+    if (!password) {
+      return res.status(400).json({ msg: "New password is required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ msg: "Password must be at least 6 characters long" });
+    }
+
+    // Verify JWT token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    } catch (err) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Find user and check if token is still valid
+    const user = await User.findById(decoded.id);
+    
+    if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Check if token has expired
+    if (Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ msg: "Reset token has expired" });
+    }
+
+    // Verify the token matches
+    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
+    if (!isValid) {
+      return res.status(400).json({ msg: "Invalid reset token" });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    // Update user password and clear reset token
+    user.password = passwordHash;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    logger.info(`Password successfully reset for user: ${user.email}`);
+    
+    res.json({ 
+      msg: "Password has been successfully reset. You can now login with your new password.",
+      status: "success"
+    });
+  } catch (err) {
+    logger.error('Reset password error:', err);
+    return res.status(500).json({ msg: "Failed to reset password" });
+  }
+}
+
 const userCtrl =  {
   register,
   refreshToken,
@@ -608,6 +787,9 @@ const userCtrl =  {
   deleteUser,
   getMe,
   checkUserStatus,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword,
 };
 
 export default userCtrl;

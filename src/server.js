@@ -177,6 +177,9 @@ app.post('/register', userController.register);
 app.post('/login', userController.login);
 // Public status check endpoint (no JWT required)
 app.post('/check-status', userController.checkUserStatus);
+app.post('/reset-password/:token', userController.resetPassword);
+app.post('/forgot-password', userController.requestPasswordReset);
+app.post('/verify-reset-token/:token', userController.verifyResetToken);
 // Protected me endpoint (JWT required) - using local auth
 app.get('/me', auth, userController.getMe);
 app.use('/api', verifyJWT, uploadRouter);
@@ -184,10 +187,19 @@ app.use('/api/user', verifyJWT, userRouter);
 
 const port = process.env.PORT || 8080;
 const startServer = async () => {
-  await connectDB();
-  app.listen(port, '0.0.0.0', function () {
-    console.log(`Express app running on port: ${port}`);
-  });
+  try {
+    // Wait for database connection before starting server
+    await connectDB();
+    console.log('Database connection established');
+    
+    app.listen(port, '0.0.0.0', function () {
+      console.log(`✓ Express app running on port: ${port}`);
+      console.log(`Email Integrator Base URL: ${process.env.EMAIL_INTEGRATOR_BASE_URL}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err.message);
+    process.exit(1); // Exit if DB connection fails
+  }
 };
 
 startServer();

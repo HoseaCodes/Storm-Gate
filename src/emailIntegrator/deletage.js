@@ -144,6 +144,23 @@ class EmailDelegate {
   }
 
   /**
+   * Send password reset email to user
+   * @param {Object} userData - User data object
+   * @param {string} userData.email - User email
+   * @param {string} userData.name - User name
+   * @param {string} userData.resetUrl - Password reset URL
+   * @param {string} [userData.appName] - Application name
+   * @param {string} [userData.appDisplayName] - Application display name
+   * @returns {Promise<Object>} Result object
+   */
+  async sendPasswordReset(userData) {
+    return await this.sendTemplateEmail({
+      ...userData,
+      templateType: 'password-reset'
+    });
+  }
+
+  /**
    * Get template configuration information
    * @returns {Object} Template configuration details
    */
@@ -173,10 +190,16 @@ class EmailDelegate {
           description: 'Registration pending confirmation',
           recipient: 'User',
           purpose: 'Confirm user registration is received and pending approval'
+        },
+        {
+          type: 'password-reset',
+          description: 'Password reset request',
+          recipient: 'User',
+          purpose: 'Send password reset link to user'
         }
       ],
       requiredFields: ['email', 'name', 'templateType'],
-      optionalFields: ['appName', 'appDisplayName'],
+      optionalFields: ['appName', 'appDisplayName', 'resetUrl'],
       endpoint: '/auth/send-email'
     };
   }
@@ -193,10 +216,11 @@ export const {
   sendAccountApproved,
   sendAccountDenied,
   sendRegistrationPending,
+  sendPasswordReset,
   getTemplateInfo
 } = emailDelegate;
 
 const EMAIL_INTEGRATOR_BASE_URL =
   process.env.NODE_ENV === 'production'
     ? 'http://email-integrator-prod.eba-p4bnt2xm.us-east-1.elasticbeanstalk.com'
-    : 'http://localhost:8080';
+    : 'http://localhost:8082';

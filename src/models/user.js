@@ -60,6 +60,14 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     profile: { type: mongoose.Schema.Types.ObjectId, refPath: "role" },
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

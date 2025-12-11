@@ -237,6 +237,9 @@ app.use('/auth', authRouter);
 app.post('/register', userController.register);
 app.post('/login', userController.login);
 app.post('/check-status', userController.checkUserStatus);
+app.post('/reset-password/:token', userController.resetPassword);
+app.post('/forgot-password', userController.requestPasswordReset);
+app.post('/verify-reset-token/:token', userController.verifyResetToken);
 
 // Protected endpoints (JWT required)
 app.get('/me', auth, userController.getMe);

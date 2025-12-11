@@ -133,3 +133,31 @@ export const sendRegistrationPendingEmail = async (userData) => {
     return false;
   }
 };
+
+// Send password reset email to user
+export const sendPasswordResetEmail = async (userData) => {
+  const { email, name, resetToken } = userData;
+  
+  try {
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+    const resetUrl = `${baseUrl}/reset-password/${resetToken}`;
+    
+    const result = await emailDelegate.sendPasswordReset({
+      email,
+      name,
+      resetUrl,
+      appName: 'Storm Gate',
+      appDisplayName: 'User Management System',
+    });
+    
+    if (result.success) {
+      logger.info(`Password reset email sent to: ${email}. Message ID: ${result.messageId}`);
+      return true;
+    } else {
+      throw new Error(`Email delegate failed: ${result.error}`);
+    }
+  } catch (error) {
+    logger.error('Error sending password reset email:', error);
+    return false;
+  }
+};
