@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.5.1...v1.5.2) (2025-12-11)
+
+### ♻️ Code Refactoring
+
+* **auth:** Implement external authentication routes with Azure AD OIDC support ([44e4519](https://github.com/HoseaCodes/Storm-Gate/commit/44e451920f11d57dbd2f2e7f410a6918a238a74e))
+
 ## [1.5.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.5.0...v1.5.1) (2025-12-11)
 
 ### 🐛 Bug Fixes
