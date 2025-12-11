@@ -47,12 +47,19 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-![IMG_9371](https://github.com/HoseaCodes/Storm-Gate/assets/66652422/bde9f6a2-e64a-4994-b278-5634eba75c2a)
+<!-- ![IMG_9371](https://github.com/HoseaCodes/Storm-Gate/assets/66652422/bde9f6a2-e64a-4994-b278-5634eba75c2a) -->
 
 ![Deployment](deployment.png)
 
 
 Storm Gate is an advanced authentication API service meticulously crafted with Node.js, offering unparalleled security and reliability for user authentication processes. Now deployed on AWS Lambda with MongoDB Atlas, it leverages modern serverless infrastructure to ensure seamless performance, auto-scaling, and global availability. Featuring Azure AD integration for enterprise-grade authentication, the service provides developers with a powerful, production-ready tool to authenticate users with ease and confidence, safeguarding their applications from unauthorized access.
+
+- ⚡ **Serverless auto-scaling**
+- 🛡️ **Azure AD secure authentication**
+- 🗂️ **Cloudinary media handling**
+- 🔐 **JWT access + refresh token rotation**
+- 🔄 **Continuous deployment pipeline using AWS ECR + Lambda**
+- ☁️ **Global availability through API Gateway**
 
 **🌐 Live Application**: Deployed on AWS Lambda (Serverless)
 
@@ -67,10 +74,14 @@ List the technologies, frameworks, and libraries that you used in your project.
 - [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 - [Azure AD](https://azure.microsoft.com/en-us/services/active-directory/)
 - [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless deployment platform
+- [AWS API Gateway](https://aws.amazon.com/api-gateway/)
+- [AWS ECR](https://aws.amazon.com/ecr/)
 - [Cloudinary](https://cloudinary.com/) - Image and video management
 - [JWT](https://jwt.io/) - JSON Web Tokens for authentication
-- ~~[Nginx](https://www.nginx.com/)~~ - Previously used
-- ~~[AWS EC2](https://aws.amazon.com/ec2/)~~ - Previously used
+  
+_Deprecated technologies:_
+- ~~[Nginx](https://www.nginx.com/)~~ 
+- ~~[AWS EC2](https://aws.amazon.com/ec2/)~~
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -81,8 +92,12 @@ Provide instructions on how to set up and run your project locally. Include prer
 
 ### Prerequisites
 
-- List any prerequisites or software that users need to have installed.
-- For example, you might require Node.js or a specific version of Python.
+  Ensure you have installed:
+
+- Node.js 18+
+- Docker Desktop
+- AWS CLI (configured)
+- MongoDB Atlas connection string
 
 ```sh
 npm install npm@latest -g
@@ -115,7 +130,7 @@ npm install
 <!-- DEPLOYMENT -->
 ## Deployment
 
-Storm Gate is successfully deployed and running on **AWS Lambda** (Serverless)
+Storm Gate is successfully deployed and running on **AWS Lambda** (Serverless) using a Docker image.
 
 ### Deployment Information
 
