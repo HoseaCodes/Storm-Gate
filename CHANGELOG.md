@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.3.1...v1.4.0) (2025-12-11)
+
+### 🚀 Features
+
+* Add password reset functionality with email notifications ([8df9e0b](https://github.com/HoseaCodes/Storm-Gate/commit/8df9e0b4e03df44798ea55bd5f406adcea77e9c0))
+
 ## [1.3.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.3.0...v1.3.1) (2025-11-18)
 
 ### 🐛 Bug Fixes
