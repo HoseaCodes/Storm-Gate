@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.3.0...v1.3.1) (2025-11-18)
+
+### 🐛 Bug Fixes
+
+* **deploy:** add BASE_URL to Lambda environment variables ([01333ee](https://github.com/HoseaCodes/Storm-Gate/commit/01333eec1b8047f7751c0edce1ae26b052625220))
+
 ## [1.3.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.2.0...v1.3.0) (2025-11-18)
 
 ### 🚀 Features
