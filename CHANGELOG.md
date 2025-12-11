@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.5.0...v1.5.1) (2025-12-11)
+
+### 🐛 Bug Fixes
+
+* **docs:** Update README with deployment details and deprecated technologies ([f9c4523](https://github.com/HoseaCodes/Storm-Gate/commit/f9c452319da94638c6a14dd4a8567a5311d46b21))
+
 ## [1.5.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.4.0...v1.5.0) (2025-12-11)
 
 ### 🚀 Features
