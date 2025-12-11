@@ -160,63 +160,63 @@ router.post("/logout", userCtrl.logout);
  */
 router.get("/refresh_token", userCtrl.refreshToken);
 
-/**
- * @swagger
- * /api/user:
- *   get:
- *     summary: Get the current user's details
- *     description: Retrieves details of the currently authenticated user, excluding the password. Includes permission checks and caching.
- *     tags: [User]
- *     responses:
- *       200:
- *         description: Successfully retrieved the user details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 users:
- *                   type: object
- *                   properties:
- *                     _id:
- *                       type: string
- *                       example: 60c72b2f9b1e8d001f647d9f
- *                     email:
- *                       type: string
- *                       example: user@example.com
- *                 result:
- *                   type: integer
- *                   example: 1
- *                 location:
- *                   type: string
- *                   example: main
- *       400:
- *         description: Bad request - User does not exist
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 msg:
- *                   type: string
- *                   example: User does not exist
- *       401:
- *         description: Unauthorized - Permission denied
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: "Not allowed: You don't have enough permission to perform this action"
- *       500:
- *         description: Internal Server Error
- */
-router.get("/info", auth, nodecache, userCtrl.getUser);
+// /**
+//  * @swagger
+//  * /api/user:
+//  *   get:
+//  *     summary: Get the current user's details
+//  *     description: Retrieves details of the currently authenticated user, excluding the password. Includes permission checks and caching.
+//  *     tags: [User]
+//  *     responses:
+//  *       200:
+//  *         description: Successfully retrieved the user details
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 users:
+//  *                   type: object
+//  *                   properties:
+//  *                     _id:
+//  *                       type: string
+//  *                       example: 60c72b2f9b1e8d001f647d9f
+//  *                     email:
+//  *                       type: string
+//  *                       example: user@example.com
+//  *                 result:
+//  *                   type: integer
+//  *                   example: 1
+//  *                 location:
+//  *                   type: string
+//  *                   example: main
+//  *       400:
+//  *         description: Bad request - User does not exist
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 msg:
+//  *                   type: string
+//  *                   example: User does not exist
+//  *       401:
+//  *         description: Unauthorized - Permission denied
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 error:
+//  *                   type: string
+//  *                   example: "Not allowed: You don't have enough permission to perform this action"
+//  *       500:
+//  *         description: Internal Server Error
+//  */
+// router.get("/info", auth, nodecache, userCtrl.getUser);
 
 /**
  * @swagger
@@ -444,126 +444,126 @@ router.post("/create", userCtrl.addProfile);
  */
 router.route("/edit/:id").put(userCtrl.updateProfile);
 
-/**
- * @swagger
- * /api/users:
- *   get:
- *     summary: Get all users
- *     description: Retrieves a list of all registered and unregistered users. Includes permission checks and caching of the user list.
- *     tags: [User]
- *     responses:
- *       200:
- *         description: Successfully retrieved the list of users
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: success
- *                 users:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       _id:
- *                         type: string
- *                         example: 60c72b2f9b1e8d001f647d9f
- *                       email:
- *                         type: string
- *                         example: user@example.com
- *                 unregisteredUser:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       _id:
- *                         type: string
- *                         example: 60c72b2f9b1e8d001f647d9f
- *                       email:
- *                         type: string
- *                         example: unregistered@example.com
- *                 allUsers:
- *                   type: array
- *                   items:
- *                     type: array
- *                     items:
- *                       type: object
- *                       properties:
- *                         _id:
- *                           type: string
- *                           example: 60c72b2f9b1e8d001f647d9f
- *                         email:
- *                           type: string
- *                           example: user@example.com
- *                 result:
- *                   type: integer
- *                   example: 42
- *                 location:
- *                   type: string
- *                   example: main
- *       400:
- *         description: Bad request - No users exist or insufficient permissions
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: "Not allowed: You don't have enough permission to perform this action"
- *       401:
- *         description: Unauthorized - Permission denied
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: "Not allowed: You don't have enough permission to perform this action"
- *       500:
- *         description: Internal Server Error
- */
-router.get("/", userCtrl.getAllUsers);
+// /**
+//  * @swagger
+//  * /api/users:
+//  *   get:
+//  *     summary: Get all users
+//  *     description: Retrieves a list of all registered and unregistered users. Includes permission checks and caching of the user list.
+//  *     tags: [User]
+//  *     responses:
+//  *       200:
+//  *         description: Successfully retrieved the list of users
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: success
+//  *                 users:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *                     properties:
+//  *                       _id:
+//  *                         type: string
+//  *                         example: 60c72b2f9b1e8d001f647d9f
+//  *                       email:
+//  *                         type: string
+//  *                         example: user@example.com
+//  *                 unregisteredUser:
+//  *                   type: array
+//  *                   items:
+//  *                     type: object
+//  *                     properties:
+//  *                       _id:
+//  *                         type: string
+//  *                         example: 60c72b2f9b1e8d001f647d9f
+//  *                       email:
+//  *                         type: string
+//  *                         example: unregistered@example.com
+//  *                 allUsers:
+//  *                   type: array
+//  *                   items:
+//  *                     type: array
+//  *                     items:
+//  *                       type: object
+//  *                       properties:
+//  *                         _id:
+//  *                           type: string
+//  *                           example: 60c72b2f9b1e8d001f647d9f
+//  *                         email:
+//  *                           type: string
+//  *                           example: user@example.com
+//  *                 result:
+//  *                   type: integer
+//  *                   example: 42
+//  *                 location:
+//  *                   type: string
+//  *                   example: main
+//  *       400:
+//  *         description: Bad request - No users exist or insufficient permissions
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 error:
+//  *                   type: string
+//  *                   example: "Not allowed: You don't have enough permission to perform this action"
+//  *       401:
+//  *         description: Unauthorized - Permission denied
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 error:
+//  *                   type: string
+//  *                   example: "Not allowed: You don't have enough permission to perform this action"
+//  *       500:
+//  *         description: Internal Server Error
+//  */
+// router.get("/", userCtrl.getAllUsers);
 
 
-/**
- * @swagger
- * /api/users:
- *   get:
- *     summary: Get all users
- *     description: Retrieves a list of all users from the database.
- *     tags: [User]
- *     responses:
- *       200:
- *         description: Successfully retrieved the list of users
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                     example: 60c72b2f9b1e8d001f647d9f
- *                   email:
- *                     type: string
- *                     example: user@example.com
- *       404:
- *         description: Not Found - No users found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: No users found
- */
-router.get("/users", userCtrl.getUsers);
+// /**
+//  * @swagger
+//  * /api/users:
+//  *   get:
+//  *     summary: Get all users
+//  *     description: Retrieves a list of all users from the database.
+//  *     tags: [User]
+//  *     responses:
+//  *       200:
+//  *         description: Successfully retrieved the list of users
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: array
+//  *               items:
+//  *                 type: object
+//  *                 properties:
+//  *                   _id:
+//  *                     type: string
+//  *                     example: 60c72b2f9b1e8d001f647d9f
+//  *                   email:
+//  *                     type: string
+//  *                     example: user@example.com
+//  *       404:
+//  *         description: Not Found - No users found
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 message:
+//  *                   type: string
+//  *                   example: No users found
+//  */
+// router.get("/users", userCtrl.getUsers);
 
 /**
  * @swagger
@@ -759,9 +759,9 @@ router.post("/add", userCtrl.addUser);
 
 router
   .route("/:id")
-  .get(isAdmin, nodecache, userCtrl.getAllUsers)
   .put(loginRequired, userCtrl.updateProfile)
   .delete(loginRequired, userCtrl.deleteProfile);
+  // .get(isAdmin, nodecache, userCtrl.getAllUsers)
 
 /**
  * @swagger

@@ -4,7 +4,7 @@ import Logger from "../utils/logger-lambda.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { cache } from "../utils/cache.js";
-import { createAccessToken, createRefreshToken, authRole } from "../utils/auth.js";
+import { createAccessToken, createRefreshToken } from "../utils/auth.js";
 import BlogUser from "../models/blogUser.js";
 import UnregisteredUser from "../models/unregisteredUser.js";
 import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
@@ -122,7 +122,7 @@ async function register(req, res) {
 
     res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
-      path: "/api/user/refresh_token",
+      path: "/api/auth/refresh_token",
       maxAge: 7 * 25 * 60 * 60 * 1000,
     });
 
@@ -181,13 +181,13 @@ async function login(req, res) {
       // Only set cookies if user checks remember me
       res.cookie("refreshtoken", refreshtoken, {
         httpOnly: true,
-        path: "/api/user/refresh_token",
+        path: "/api/auth/refresh_token",
         maxAge: 7 * 25 * 60 * 60 * 1000,
       });
     }
     res.cookie("accesstoken", accesstoken, {
       maxAge: 7 * 25 * 60 * 60 * 1000,
-      path: "/api/user/login",
+      path: "/api/auth/login",
       httpOnly: true,
     });
 
@@ -209,52 +209,9 @@ async function login(req, res) {
 
 async function logout(req, res) {
   try {
-    res.clearCookie("refreshtoken", { path: "/api/user/refresh_token" });
+    res.clearCookie("refreshtoken", { path: "/api/auth/refresh_token" });
     return res.json({ msg: "Logged Out", status: "Successful"});
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
-  }
-}
-
-async function getAllUsers(req, res) {
-  try {
-    const users = await User.find();
-    if (!users) return res.status(400).json({ msg: "No users exist" });
-    let granted = true;
-    const access = ["basic", "supervisor", "admin"];
-    granted = authRole(access, users);
-    const unregisteredUser = await UnregisteredUser.find();
-    if (!granted) {
-      return res.status(401).json({
-        error:
-          "Not allowed: You don't have enough permission to perform this action",
-      });
-    }
-    logger.info("Returning all of the users");
-
-    res.cookie("users-cache", users.length + "users", {
-      maxAge: 1000 * 60 * 60, // would expire after an hour
-      httpOnly: true, // The cookie only accessible by the web server
-    });
-
-    cache.set(users.length + "users", {
-      status: "success",
-      users: [users, unregisteredUser],
-      result: users.length + unregisteredUser.length,
-      location: "cache",
-    });
-
-    res.json({
-      status: "success",
-      users: users,
-      unregisteredUser: unregisteredUser,
-      allUsers: [users, unregisteredUser],
-      result: users.length + unregisteredUser.length,
-      location: "main",
-    });
-  } catch (err) {
-    logger.error(err);
-
     return res.status(500).json({ msg: err.message });
   }
 }
@@ -305,42 +262,6 @@ async function getAllUsers(req, res) {
 //   }
 // }
 
-async function getUser(req, res) {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(400).json({ msg: "User does not exist" });
-    let granted = true;
-    const access = ["basic", "supervisor", "admin"];
-    granted = authRole(access, user);
-    if (!granted) {
-      return res.status(401).json({
-        error:
-          "Not allowed: You don't have enough permission to perform this action",
-      });
-    }
-    res.cookie("user-cache", user.id + "user", {
-      maxAge: 1000 * 60 * 60, // would expire after an hour
-      httpOnly: true, // The cookie only accessible by the web server
-    });
-
-    cache.set(user.id + "user", {
-      status: "success",
-      user: user,
-      result: user.length,
-      location: "cache",
-    });
-
-    res.json({
-      status: "success",
-      users: user,
-      result: user.length,
-      location: "main",
-    });
-  } catch (err) {
-    return res.status(500).json({ msg: err.message });
-  }
-}
-
 async function updateProfile(req, res) {
   try {
     const {
@@ -353,15 +274,15 @@ async function updateProfile(req, res) {
     const originalBody = req.body;
     const userId = req.params.id;
     const originalUser = await User.findOne({ _id: userId });
-    let granted = true;
-    const access = ["auperAdmin", "admin"];
-    granted = authRole(access, originalUser);
-    if (!granted) {
-      return res.status(401).json({
-        error:
-          "Not allowed: You don't have enough permission to perform this action",
-      });
-    }
+    // let granted = true;
+    // const access = ["auperAdmin", "admin"];
+    // granted = authRole(access, originalUser);
+    // if (!granted) {
+    //   return res.status(401).json({
+    //     error:
+    //       "Not allowed: You don't have enough permission to perform this action",
+    //   });
+    // }
     if (originalBody.notifications) {
       const newNotifications = originalUser.notifications.concat(notifications);
       const uniqueNotifications = [...new Set(newNotifications)];
@@ -437,15 +358,15 @@ async function deleteProfile(req, res) {
     const userId = req.params.id;
     logger.info(`Deleted user ${userId} has been deleted`);
     const user = await User.findById(userId);
-    let granted = true;
-    const access = ["admin"];
-    granted = authRole(access, user);
-    if (!granted) {
-      return res.status(401).json({
-        error:
-          "Not allowed: You don't have enough permission to perform this action",
-      });
-    }
+    // let granted = true;
+    // const access = ["admin"];
+    // granted = authRole(access, user);
+    // if (!granted) {
+    //   return res.status(401).json({
+    //     error:
+    //       "Not allowed: You don't have enough permission to perform this action",
+    //   });
+    // }
     await User.findByIdAndDelete(userId);
 
     res.clearCookie("users-cache");
@@ -473,15 +394,6 @@ async function addProfile(req, res) {
   } catch (err) {
     console.log(err);
     return res.status(500).json({ msg: err.message });
-  }
-}
-
-async function getUsers(req, res) {
-  try {
-    const users = await User.find();
-    res.status(200).json(users);
-  } catch (error) {
-    res.status(404).json({ message: error.message });
   }
 }
 
@@ -618,17 +530,20 @@ async function requestPasswordReset(req, res) {
       });
     }
 
-    // Generate reset token (valid for 1 hour)
-    const resetToken = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: '1h' }
-    );
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Hash token and set to resetPasswordToken field
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    // Set expire time (10 minutes)
+    user.resetPasswordToken = resetPasswordToken;
+    user.resetPasswordExpire = Date.now() + 20 * 60 * 1000; // 20 minutes
 
     // Save hashed token to database
-    const hashedToken = await bcrypt.hash(resetToken, 10);
-    user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
     // Send password reset email
@@ -721,30 +636,25 @@ async function resetPassword(req, res) {
       return res.status(400).json({ msg: "Password must be at least 6 characters long" });
     }
 
-    // Verify JWT token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    } catch (err) {
-      return res.status(400).json({ msg: "Invalid or expired reset token" });
-    }
+    // Hash the token from params to compare with stored hash
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
 
-    // Find user and check if token is still valid
-    const user = await User.findById(decoded.id);
-    
-    if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
+    // Find user with valid token and non-expired token
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
       return res.status(400).json({ msg: "Invalid or expired reset token" });
     }
 
     // Check if token has expired
     if (Date.now() > user.resetPasswordExpires) {
       return res.status(400).json({ msg: "Reset token has expired" });
-    }
-
-    // Verify the token matches
-    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
-    if (!isValid) {
-      return res.status(400).json({ msg: "Invalid reset token" });
     }
 
     // Hash new password
@@ -773,14 +683,11 @@ const userCtrl =  {
   refreshToken,
   login,
   logout,
-  getUser,
   updateProfile,
   deleteProfile,
-  getAllUsers,
   // addCart,
   // history,
   addProfile,
-  getUsers,
   addUser,
   getUserById,
   editUser,

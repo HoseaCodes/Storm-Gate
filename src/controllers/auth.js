@@ -1,380 +1,433 @@
-import * as oauth from 'openid-client';
-import jwt from 'jsonwebtoken';
 import User from "../models/user.js";
-import BlogUser from "../models/blogUser.js";
 import Logger from "../utils/logger-lambda.js";
-import { cache } from "../utils/cache.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { createAccessToken, createRefreshToken } from "../utils/auth.js";
+import BlogUser from "../models/blogUser.js";
+import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
 
-const logger = new Logger("auth");
+const logger = new Logger("users");
 
-// OIDC Client configuration
-let azureConfiguration = null;
-
-const initializeOIDCConfig = async () => {
-  if (azureConfiguration) return azureConfiguration;
-  
+async function register(req, res) {
   try {
-    const issuerUrl = `https://login.microsoftonline.com/${process.env.TENANT_ID}/v2.0`;
-    azureConfiguration = await oauth.discovery(new URL(issuerUrl), process.env.CLIENT_ID, process.env.CLIENT_SECRET);
+    let { name, email, username, password, role, application, status } = req.body;
+    // User is role 0
+    // Admin is role 1
     
-    logger.info('OIDC Configuration initialized successfully');
-    return azureConfiguration;
-  } catch (error) {
-    logger.error('Failed to initialize OIDC configuration:', error);
-    throw new Error('OIDC initialization failed');
-  }
-};
-
-// Store state and nonce temporarily (in production, use Redis or database)
-const authSessions = new Map();
-
-/**
- * Initiate OIDC Authorization Code Flow
- * GET /auth/login
- */
-async function initiateLogin(req, res) {
-  try {
-    const config = await initializeOIDCConfig();
-    
-    // Generate state and code verifier for PKCE
-    const state = oauth.randomState();
-    const codeVerifier = oauth.randomPKCECodeVerifier();
-    const codeChallenge = await oauth.calculatePKCECodeChallenge(codeVerifier);
-    
-    // Store session data (in production, use secure session storage)
-    authSessions.set(state, {
-      codeVerifier,
-      application: req.query.application || 'default',
-      returnUrl: req.query.return_url,
-      timestamp: Date.now()
+    const existingUser = await User.findOne({
+      $or: [
+        { email }, 
+        ...(username ? [{ username }] : [])
+      ]
     });
-    
-    // Build authorization URL
-    const authUrl = oauth.buildAuthorizationUrl(config, {
-      client_id: process.env.CLIENT_ID,
-      scope: 'openid profile email offline_access',
-      state,
-      code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
-      response_type: 'code',
-      redirect_uri: process.env.REDIRECT_URI || 'http://localhost:3001/auth/callback'
-    });
-    
-    logger.info(`Initiating OIDC login for application: ${req.query.application}`);
-    
-    // Redirect user to Azure AD
-    res.redirect(authUrl.href);
-  } catch (error) {
-    logger.error('Login initiation failed:', error);
-    res.status(500).json({ 
-      error: 'Authentication service unavailable',
-      message: error.message 
-    });
-  }
-}
 
-/**
- * Handle OIDC Authorization Code Callback
- * GET /auth/callback
- */
-async function handleCallback(req, res) {
-  try {
-    const config = await initializeOIDCConfig();
-    const { code, state, error, error_description } = req.query;
     
-    // Handle OAuth errors
-    if (error) {
-      logger.error(`OAuth error: ${error} - ${error_description}`);
-      return res.status(400).json({ 
-        error: 'Authentication failed',
-        details: error_description 
+    if (existingUser) {
+      logger.error(`Signup attempt with existing ${existingUser.email === email ? 'email' : 'username'}`);
+      return res
+        .status(409)
+        .json({ message: `${existingUser.email === email ? 'Email' : 'Username'} already exists` });
+    }
+
+    if (password.length < 6)
+      return res
+        .status(401)
+        .json({ msg: "Password is at least 6 characters long" });
+
+    //Password Encryption
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Determine user status
+    let userStatus = status || "APPROVED"; // Default to APPROVED for backward compatibility
+    if (status && status === "PENDING") {
+      userStatus = "PENDING";
+    }
+
+    const createNewUser = async (application) => {
+      const userData = {
+        name,
+        email,
+        password: passwordHash,
+        application,
+        role: role || "basic",
+        status: userStatus
+      };
+
+      switch (application) {
+        case "blog":
+          const blog = new BlogUser({
+            ...userData,
+            aboutMe: "About me",
+          });
+          return await blog.save();
+        case "ecommerce":
+          // Future implementation
+          break;
+        case "social":
+          // Future implementation
+          break;
+        default:
+          const newUser = new User(userData);
+          return await newUser.save();
+      }
+    };
+
+    const savedUser = await createNewUser(application);
+
+    if (!savedUser) {
+      return res.status(500).json({ msg: "Failed to create user" });
+    }
+
+    // Handle pending approval workflow
+    if (userStatus === "PENDING") {
+      try {
+        // Send approval email to admin
+        console.log(`Attempting to send approval email for user: ${email}`);
+        logger.info(`Attempting to send approval email for user: ${email}`);
+        const emailSent = await sendApprovalEmail({ email, name });
+        
+        if (emailSent) {
+          logger.info(`Approval email sent successfully for user: ${email}`);
+        } else {
+          logger.warn(`Failed to send approval email for user: ${email}`);
+        }
+        
+        // Send confirmation email to user
+        logger.info(`Attempting to send pending registration email to user: ${email}`);
+        const userEmailSent = await sendRegistrationPendingEmail({ email, name });
+        
+        if (userEmailSent) {
+          logger.info(`Pending registration email sent successfully to user: ${email}`);
+        } else {
+          logger.warn(`Failed to send pending registration email to user: ${email}`);
+        }
+      } catch (emailError) {
+        logger.error(`Email sending error for user ${email}:`, emailError);
+        // Don't fail registration if email fails
+      }
+      
+      return res.status(201).json({ 
+        msg: "Registration successful. Your account is pending approval.",
+        status: "PENDING",
+        requiresApproval: true
       });
     }
-    
-    // Validate state parameter
-    const sessionData = authSessions.get(state);
-    if (!sessionData) {
-      logger.error('Invalid or expired state parameter');
-      return res.status(400).json({ error: 'Invalid authentication request' });
-    }
-    
-    // Clean up expired sessions (older than 10 minutes)
-    const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
-    for (const [key, value] of authSessions.entries()) {
-      if (value.timestamp < tenMinutesAgo) {
-        authSessions.delete(key);
-      }
-    }
-    
-    // Exchange authorization code for tokens
-    const tokens = await oauth.authorizationCodeGrant(config, new URL(req.originalUrl, `${req.protocol}://${req.get('host')}`), {
-      pkce_code_verifier: sessionData.codeVerifier
-    });
-    
-    // Decode the ID token to get user claims
-    const claims = tokens.id_token ? JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64').toString()) : null;
-    
-    if (!claims) {
-      return res.status(400).json({ error: 'No user claims found in token' });
-    }
-    
-    logger.info(`Successful authentication for user: ${claims.preferred_username || claims.email}`);
-    
-    // Find or create user based on Azure AD claims
-    let user = await findOrCreateUser(claims, sessionData.application);
-    
-    // Create internal JWT tokens for your application
-    const accessToken = createInternalAccessToken(user);
-    const refreshToken = createInternalRefreshToken(user);
-    
-    // Store refresh token securely
-    await storeRefreshToken(user._id, refreshToken);
-    
-    // Clean up session
-    authSessions.delete(state);
-    
-    // Set secure cookies
-    const cookieOptions = {
+
+    // For approved users, create tokens and proceed normally
+    const accesstoken = createAccessToken({ id: savedUser._id });
+    const refreshtoken = createRefreshToken({ id: savedUser._id });
+
+    res.cookie("refreshtoken", refreshtoken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-    };
-    
-    res.cookie('refreshtoken', refreshToken, {
-      ...cookieOptions,
-      path: '/auth/refresh'
+      path: "/api/auth/refresh_token",
+      maxAge: 7 * 25 * 60 * 60 * 1000,
     });
-    
-    res.cookie('accesstoken', accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000, // 15 minutes
-      path: '/'
-    });
-    
-    // Redirect to application or return tokens
-    if (sessionData.returnUrl) {
-      return res.redirect(`${sessionData.returnUrl}?token=${accessToken}`);
-    }
-    
-    res.json({
-      status: 'success',
-      message: 'Authentication successful',
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        application: user.application,
-        role: user.role
-      },
-      tokens: {
-        accessToken,
-        expiresIn: 900 // 15 minutes
-      }
-    });
-    
-  } catch (error) {
-    logger.error('Callback handling failed:', error);
-    authSessions.delete(req.query.state); // Clean up on error
-    
-    res.status(500).json({ 
-      error: 'Authentication processing failed',
-      message: error.message 
-    });
+
+    res.json({ accesstoken, status: "Successful" });
+  } catch (err) {
+    logger.error('Registration error:', err);
+    return res.status(500).json({ msg: err.message });
   }
 }
 
-/**
- * Refresh Access Token
- * POST /auth/refresh
- */
-async function refreshAccessToken(req, res) {
+function refreshToken(req, res) {
   try {
-    let refreshToken = req.cookies.refreshtoken || req.body.refreshToken;
-    
-    if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token required' });
-    }
-    
-    // Remove JWT prefix if present
-    refreshToken = refreshToken.replace(/^JWT\s/, '');
-    
-    // Verify refresh token
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    
-    // Check if refresh token is still valid in storage
-    const storedToken = await getStoredRefreshToken(decoded.id);
-    if (storedToken !== refreshToken) {
-      return res.status(401).json({ error: 'Invalid refresh token' });
-    }
-    
-    // Get user
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-    
-    // Create new access token
-    const newAccessToken = createInternalAccessToken(user);
-    
-    res.json({
-      accessToken: newAccessToken,
-      expiresIn: 900 // 15 minutes
+    let rf_token = req.cookies.refreshtoken;
+    if (rf_token)
+      rf_token = rf_token = req.cookies.refreshtoken.replace(/^JWT\s/, "");
+    if (!rf_token)
+      return res.status(400).json({ msg: "Please Login or Register" });
+
+    jwt.verify(rf_token, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+      if (err)
+        return res
+          .status(400)
+          .json({ msg: "Please Verify Info & Login or Register" });
+
+      const accesstoken = createAccessToken({ id: user.id });
+
+      res.json({ accesstoken });
     });
-    
-  } catch (error) {
-    logger.error('Token refresh failed:', error);
-    res.status(401).json({ error: 'Token refresh failed' });
+  } catch (err) {
+    return res.status(500).json({ msg: err.message, err: err });
   }
 }
 
-/**
- * Logout user and clean up sessions
- * POST /auth/logout
- */
+async function login(req, res) {
+  try {
+    const { email, password, rememberMe } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ msg: "User does not exist." });
+
+    // Check user status
+    if (user.status === "DENIED") {
+      return res.status(403).json({ 
+        msg: "Your account registration has been denied. Please contact support.",
+        status: "DENIED"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ msg: "Invalid password" });
+
+    const accesstoken = createAccessToken({ id: user._id });
+    const refreshtoken = createRefreshToken({ id: user._id });
+
+    if (rememberMe) {
+      // Only set cookies if user checks remember me
+      res.cookie("refreshtoken", refreshtoken, {
+        httpOnly: true,
+        path: "/api/auth/refresh_token",
+        maxAge: 7 * 25 * 60 * 60 * 1000,
+      });
+    }
+    res.cookie("accesstoken", accesstoken, {
+      maxAge: 7 * 25 * 60 * 60 * 1000,
+      path: "/api/auth/login",
+      httpOnly: true,
+    });
+
+    // Different response for pending users
+    if (user.status === "PENDING") {
+      return res.json({ 
+        accesstoken, 
+        status: "PENDING",
+        msg: "Login successful. Your account is pending approval - limited access.",
+        limitedAccess: true
+      });
+    }
+
+    res.json({ accesstoken, status: "Successful"});
+  } catch (err) {
+    return res.status(500).json({ msg: err.message });
+  }
+}
+
 async function logout(req, res) {
   try {
-    const refreshToken = req.cookies.refreshtoken;
+    res.clearCookie("refreshtoken", { path: "/api/auth/refresh_token" });
+    return res.json({ msg: "Logged Out", status: "Successful"});
+  } catch (err) {
+    return res.status(500).json({ msg: err.message });
+  }
+}
+
+async function checkUserStatus(req, res) {
+  try {
+    const { email } = req.body;
     
-    if (refreshToken) {
-      // Invalidate refresh token
-      const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-      await invalidateRefreshToken(decoded.id);
+    if (!email) {
+      return res.status(400).json({ msg: "Email is required" });
     }
+
+    const user = await User.findOne({ email }).select('email name status createdAt');
     
-    // Clear cookies
-    res.clearCookie('refreshtoken', { path: '/auth/refresh' });
-    res.clearCookie('accesstoken', { path: '/' });
-    
-    logger.info('User logged out successfully');
-    res.json({ 
-      status: 'success',
-      message: 'Logged out successfully' 
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json({
+      status: "success",
+      user: {
+        email: user.email,
+        name: user.name,
+        status: user.status || "APPROVED",
+        registeredAt: user.createdAt
+      }
     });
-    
-  } catch (error) {
-    logger.error('Logout failed:', error);
-    res.status(500).json({ error: 'Logout failed' });
+  } catch (err) {
+    logger.error('Check user status error:', err);
+    return res.status(500).json({ msg: err.message });
   }
 }
 
 /**
- * Get current user info
- * GET /auth/me
+ * Request password reset
+ * POST /api/user/forgot-password
  */
-async function getCurrentUser(req, res) {
+async function requestPasswordReset(req, res) {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const { email } = req.body;
     
-    res.json({
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        application: user.application,
-        role: user.role,
-        createdAt: user.createdAt
-      }
-    });
-  } catch (error) {
-    logger.error('Get current user failed:', error);
-    res.status(500).json({ error: 'Failed to get user info' });
-  }
-}
-
-// Helper Functions
-
-async function findOrCreateUser(claims, application = 'default') {
-  const { preferred_username, name, email, sub: azureUserId } = claims;
-  
-  // Try to find existing user by email or Azure user ID
-  let user = await User.findOne({
-    $or: [
-      { email: email || preferred_username },
-      { azureUserId }
-    ]
-  });
-  
-  if (user) {
-    // Update Azure user ID if not set
-    if (!user.azureUserId) {
-      user.azureUserId = azureUserId;
-      await user.save();
+    if (!email) {
+      return res.status(400).json({ msg: "Email is required" });
     }
-    return user;
-  }
-  
-  // Create new user based on application type
-  const userData = {
-    name: name || preferred_username,
-    email: email || preferred_username,
-    azureUserId,
-    application,
-    role: 'basic', // Default role
-    authProvider: 'azure-ad'
-  };
-  
-  switch (application) {
-    case 'blog':
-      user = new BlogUser({
-        ...userData,
-        aboutMe: 'About me'
+
+    const user = await User.findOne({ email });
+    
+    // Don't reveal if user exists or not for security
+    if (!user) {
+      return res.json({ 
+        msg: "If an account with that email exists, a password reset link has been sent.",
+        status: "success"
       });
-      break;
-    default:
-      user = new User(userData);
-      break;
-  }
-  
-  await user.save();
-  logger.info(`Created new user: ${user.email} for application: ${application}`);
-  
-  return user;
-}
+    }
 
-function createInternalAccessToken(user) {
-  return jwt.sign(
-    { 
-      id: user._id,
+    // Check if user uses Azure AD authentication
+    if (user.authProvider === 'azure-ad') {
+      return res.status(400).json({ 
+        msg: "This account uses Azure AD authentication. Please reset your password through your organization's Azure AD portal."
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Hash token and set to resetPasswordToken field
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    // Set expire time (10 minutes)
+    user.resetPasswordToken = resetPasswordToken;
+    user.resetPasswordExpire = Date.now() + 20 * 60 * 1000; // 20 minutes
+
+    // Save hashed token to database
+    await user.save();
+
+    // Send password reset email
+    const { sendPasswordResetEmail } = await import('../utils/email.js');
+    await sendPasswordResetEmail({
       email: user.email,
-      role: user.role,
-      application: user.application
-    },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: '15m' }
-  );
+      name: user.name,
+      resetToken
+    });
+
+    logger.info(`Password reset requested for user: ${email}`);
+    
+    res.json({ 
+      msg: "If an account with that email exists, a password reset link has been sent.",
+      status: "success"
+    });
+  } catch (err) {
+    logger.error('Request password reset error:', err);
+    return res.status(500).json({ msg: "Failed to process password reset request" });
+  }
 }
 
-function createInternalRefreshToken(user) {
-  return jwt.sign(
-    { id: user._id },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: '7d' }
-  );
+/**
+ * Verify reset token
+ * GET /api/user/reset-password/:token
+ */
+async function verifyResetToken(req, res) {
+  try {
+    const { token } = req.params;
+    
+    if (!token) {
+      return res.status(400).json({ msg: "Reset token is required" });
+    }
+
+    // Verify JWT token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    } catch (err) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Find user and check if token is still valid
+    const user = await User.findById(decoded.id);
+    
+    if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Check if token has expired
+    if (Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ msg: "Reset token has expired" });
+    }
+
+    // Verify the token matches
+    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
+    if (!isValid) {
+      return res.status(400).json({ msg: "Invalid reset token" });
+    }
+
+    res.json({ 
+      msg: "Token is valid",
+      status: "success",
+      email: user.email
+    });
+  } catch (err) {
+    logger.error('Verify reset token error:', err);
+    return res.status(500).json({ msg: "Failed to verify reset token" });
+  }
 }
 
-async function storeRefreshToken(userId, token) {
-  // Store in cache with 7-day TTL
-  cache.set(`refresh_token_${userId}`, token, 7 * 24 * 60 * 60);
+/**
+ * Reset password
+ * POST /api/user/reset-password/:token
+ */
+async function resetPassword(req, res) {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ msg: "Reset token is required" });
+    }
+
+    if (!password) {
+      return res.status(400).json({ msg: "New password is required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ msg: "Password must be at least 6 characters long" });
+    }
+
+    // Hash the token from params to compare with stored hash
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    // Find user with valid token and non-expired token
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Check if token has expired
+    if (Date.now() > user.resetPasswordExpires) {
+      return res.status(400).json({ msg: "Reset token has expired" });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    // Update user password and clear reset token
+    user.password = passwordHash;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    logger.info(`Password successfully reset for user: ${user.email}`);
+    
+    res.json({ 
+      msg: "Password has been successfully reset. You can now login with your new password.",
+      status: "success"
+    });
+  } catch (err) {
+    logger.error('Reset password error:', err);
+    return res.status(500).json({ msg: "Failed to reset password" });
+  }
 }
 
-async function getStoredRefreshToken(userId) {
-  return cache.get(`refresh_token_${userId}`);
-}
-
-async function invalidateRefreshToken(userId) {
-  cache.del(`refresh_token_${userId}`);
-}
-
-const authController = {
-  initiateLogin,
-  handleCallback,
-  refreshAccessToken,
+const userCtrl =  {
+  register,
+  refreshToken,
+  login,
   logout,
-  getCurrentUser
+  checkUserStatus,
+  requestPasswordReset,
+  verifyResetToken,
+  resetPassword,
 };
 
-export default authController;
+export default userCtrl;
