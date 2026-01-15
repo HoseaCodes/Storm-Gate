@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.5.2...v1.6.0) (2026-01-15)
+
+### 🚀 Features
+
+* Add guest user creation and retrieval endpoints ([6b8e025](https://github.com/HoseaCodes/Storm-Gate/commit/6b8e02564d1ef5e506e0b50378c524e6457f0f43))
+
 ## [1.5.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.5.1...v1.5.2) (2025-12-11)
 
 ### ♻️ Code Refactoring
