@@ -1,5 +1,6 @@
 import express from 'express';
 import authCtrl from '../controllers/auth.js';
+import { guestLogin, getGuestUser } from '../controllers/guest.js';
 const router = express.Router();
 
 /**
@@ -58,6 +59,12 @@ const router = express.Router();
  *         description: Internal Server Error
  */
 router.post("/register", authCtrl.register);
+
+// Guest login endpoint
+router.post("/guest-login", guestLogin);
+
+// Get guest user by id
+router.get("/guest/:id", getGuestUser);
 
 /**
  * @swagger
