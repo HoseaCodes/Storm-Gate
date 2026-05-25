@@ -2,3 +2,6 @@ node_modules
 .env*
 /logs
 .DS_Store
+packages/*/dist
+*.tgz
+SECURITY_AUDIT.md

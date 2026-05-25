@@ -1,0 +1,56 @@
+{
+  "name": "@storm-gate/client",
+  "version": "0.1.0",
+  "description": "Browser SDK for the Storm-Gate auth service.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "axios": ">=1.6.0 <2"
+  },
+  "devDependencies": {
+    "axios": "^1.6.0",
+    "jsdom": "^25.0.0",
+    "msw": "^2.4.0"
+  },
+  "keywords": [
+    "storm-gate",
+    "auth",
+    "sdk",
+    "browser",
+    "jwt"
+  ],
+  "author": "Dominique Hosea",
+  "license": "MIT",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HoseaCodes/Storm-Gate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/HoseaCodes/Storm-Gate/issues"
+  },
+  "homepage": "https://github.com/HoseaCodes/Storm-Gate#readme"
+}
