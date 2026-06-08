@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.6.0...v1.7.0) (2026-06-08)
+
+### 🚀 Features
+
+* **client:** implement cookie management and authentication endpoints ([33ba780](https://github.com/HoseaCodes/Storm-Gate/commit/33ba7804075f6539b5a3b991542516a7a2e3c0b8))
+
 ## [1.6.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.5.2...v1.6.0) (2026-01-15)
 
 ### 🚀 Features
