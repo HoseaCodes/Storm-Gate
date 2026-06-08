@@ -45,7 +45,21 @@ if (isLocal) {
 }
 
 app.use(express.json());
-app.use(cors());
+
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3003')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGINS) {
+  console.warn('[CORS] CORS_ORIGINS env var is not set in production — falling back to localhost defaults. Cross-origin requests from prod consumers will be rejected.');
+}
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true,
+}));
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 

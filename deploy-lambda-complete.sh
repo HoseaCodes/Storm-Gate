@@ -38,6 +38,15 @@ REFRESH_TOKEN_SECRET="${REFRESH_TOKEN_SECRET:-your-refresh-token-secret}"
 CLOUDINARY_CLOUD_NAME="${CLOUDINARY_CLOUD_NAME:-your-cloudinary-name}"
 CLOUDINARY_API_KEY="${CLOUDINARY_API_KEY:-your-cloudinary-key}"
 CLOUDINARY_API_SECRET="${CLOUDINARY_API_SECRET:-your-cloudinary-secret}"
+CLIENT_SECRET="${CLIENT_SECRET:-your-azure-client-secret}"
+JWT_SECRET="${JWT_SECRET:-your-jwt-secret}"
+API_IDENTIFIER="${API_IDENTIFIER:-}"
+CORS_ORIGINS="${CORS_ORIGINS:-}"
+EMAIL_HOST="${EMAIL_HOST:-smtp.gmail.com}"
+EMAIL_PORT="${EMAIL_PORT:-465}"
+EMAIL_USER="${EMAIL_USER:-}"
+EMAIL_PASS="${EMAIL_PASS:-}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -132,7 +141,23 @@ validate_env_vars() {
     if [[ "$CLOUDINARY_CLOUD_NAME" == "your-cloudinary-name" ]]; then
         missing_vars+=("CLOUDINARY_CLOUD_NAME")
     fi
-    
+
+    if [[ "$CLIENT_SECRET" == "your-azure-client-secret" || -z "$CLIENT_SECRET" ]]; then
+        missing_vars+=("CLIENT_SECRET")
+    fi
+
+    if [[ "$JWT_SECRET" == "your-jwt-secret" || -z "$JWT_SECRET" ]]; then
+        missing_vars+=("JWT_SECRET")
+    fi
+
+    if [[ -z "$CORS_ORIGINS" ]]; then
+        print_warning "CORS_ORIGINS is empty — cross-origin requests from prod consumers will be rejected. Set it in .env (comma-separated list of allowed origins)."
+    fi
+
+    if [[ -z "$EMAIL_USER" || -z "$EMAIL_PASS" || -z "$ADMIN_EMAIL" ]]; then
+        print_warning "EMAIL_USER / EMAIL_PASS / ADMIN_EMAIL not set — approval and password-reset emails will fail."
+    fi
+
     if [ ${#missing_vars[@]} -gt 0 ]; then
         print_warning "The following environment variables need to be updated:"
         for var in "${missing_vars[@]}"; do
@@ -366,12 +391,21 @@ configure_environment() {
         "NODE_ENV": "production",
         "MONGODB_URL": "$MONGODB_URL",
         "CLIENT_ID": "$CLIENT_ID",
+        "CLIENT_SECRET": "$CLIENT_SECRET",
         "TENANT_ID": "$TENANT_ID",
+        "API_IDENTIFIER": "$API_IDENTIFIER",
         "ACCESS_TOKEN_SECRET": "$ACCESS_TOKEN_SECRET",
         "REFRESH_TOKEN_SECRET": "$REFRESH_TOKEN_SECRET",
+        "JWT_SECRET": "$JWT_SECRET",
+        "CORS_ORIGINS": "$CORS_ORIGINS",
         "CLOUDINARY_CLOUD_NAME": "$CLOUDINARY_CLOUD_NAME",
         "CLOUDINARY_API_KEY": "$CLOUDINARY_API_KEY",
         "CLOUDINARY_API_SECRET": "$CLOUDINARY_API_SECRET",
+        "EMAIL_HOST": "$EMAIL_HOST",
+        "EMAIL_PORT": "$EMAIL_PORT",
+        "EMAIL_USER": "$EMAIL_USER",
+        "EMAIL_PASS": "$EMAIL_PASS",
+        "ADMIN_EMAIL": "$ADMIN_EMAIL",
         "BASE_URL": "$BASE_URL"
     }
 }
