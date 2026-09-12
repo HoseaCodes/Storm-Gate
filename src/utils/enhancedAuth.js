@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/user.js';
 import Logger from './logger-lambda.js';
+import { getIssuer, getPublicKeyByKid } from './signingKeys.js';
 
 const logger = new Logger('auth-middleware');
 
@@ -19,10 +20,34 @@ const enhancedVerifyJWT = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
 
-    // First try to verify as internal token
+    // First try to verify as an internally-issued token. Storm-Gate signs these
+    // HS256 by default and RS256 once JWT_SIGNING_ALG is flipped, so both have
+    // to verify here -- 1-day tokens signed before the flip stay valid after it.
+    //
+    // A `kid` that resolves against our OWN published key set is what separates
+    // our RS256 tokens from Azure AD's: Azure's kids never resolve here, so
+    // those fall through to the Azure branch below exactly as before.
+    //
+    // `algorithms` is pinned to the one algorithm the selected key can validate.
+    // Leaving it open is what lets an attacker HMAC-sign a token using our
+    // published RSA public key as the shared secret and have it accepted.
+    const header = jwt.decode(token, { complete: true })?.header;
+    const ourKey =
+      header?.alg === 'RS256' && header.kid ? getPublicKeyByKid(header.kid) : null;
+
     try {
-      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-      
+      let decoded;
+      if (ourKey) {
+        const verifyOptions = { algorithms: ['RS256'] };
+        const issuer = getIssuer();
+        if (issuer) verifyOptions.issuer = issuer;
+        decoded = jwt.verify(token, ourKey, verifyOptions);
+      } else {
+        decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, {
+          algorithms: ['HS256'],
+        });
+      }
+
       // For internal tokens, we trust the payload directly
       if (decoded.id) {
         req.user = decoded;
