@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from "../models/user.js";
 import BlogUser from "../models/blogUser.js";
 import Logger from "../utils/logger-lambda.js";
+import { signAccessToken } from "../utils/signingKeys.js";
 import { cache } from "../utils/cache.js";
 
 const logger = new Logger("auth");
@@ -336,14 +337,13 @@ async function findOrCreateUser(claims, application = 'default') {
 }
 
 function createInternalAccessToken(user) {
-  return jwt.sign(
-    { 
+  return signAccessToken(
+    {
       id: user._id,
       email: user.email,
       role: user.role,
       application: user.application
     },
-    process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: '15m' }
   );
 }

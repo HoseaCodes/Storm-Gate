@@ -1,9 +1,19 @@
+import { readFileSync } from "node:fs";
+
+// Single source of truth for the service version: semantic-release writes it
+// into package.json on release (see .releaserc.json), so the docs can never
+// drift from the deployed tag. Both Dockerfiles COPY package*.json to the
+// workdir root, so this resolves inside the container and in Lambda.
+const { version } = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8")
+);
+
 const swaggerOptions = {
     definition: {
         openapi: "3.0.0",
         info: {
             title: "StormGate API",
-            version: "1.0.0",
+            version,
             description: "A robust authentication API service built with Node.js and Express. Provides user authentication, file upload, and management functionalities."
         },
         servers: [

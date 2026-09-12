@@ -10,6 +10,7 @@ import userRouter from './routes/user.js';
 import extAuthRouter from './routes/ext-auth.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
+import wellKnownRouter from './routes/wellKnown.js';
 import connectDB from './config/db.js';
 import { imageOp } from './utils/imageOp.js';
 import rateLimit from 'express-rate-limit';
@@ -63,6 +64,12 @@ const limiter = rateLimit({
 	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
 	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 })
+
+// Key discovery is mounted ahead of the rate limiter on purpose: verifiers
+// fetch the JWKS on a cache miss and on rotation, and a shared egress IP
+// (NAT, CI, a fleet behind one proxy) would otherwise burn the 100/hour budget
+// and break token verification for every service behind it.
+app.use(wellKnownRouter);
 
 app.use(limiter);
 
