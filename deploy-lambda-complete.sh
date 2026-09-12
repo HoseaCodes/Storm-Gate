@@ -19,10 +19,29 @@ API_STAGE_NAME="${API_STAGE_NAME:-prod}"
 load_env_file() {
     if [ -f ".env" ]; then
         print_status "Loading environment variables from .env file..."
-        # Export variables from .env file, handling quotes and special characters
-        set -a  # automatically export all variables
-        source <(grep -v '^#' .env | grep -v '^$' | sed 's/\r$//')
-        set +a  # stop automatically exporting
+        # Parsed line by line rather than sourced. `source` evaluates each line
+        # as shell, so an unquoted value containing & ; | or a backtick is read
+        # as syntax: a Mongo connection string ending `?retryWrites=true&w=majority`
+        # has its bare & background the assignment, which leaves MONGODB_URL
+        # UNSET (falling back to the placeholder default) and invents a stray
+        # `w=majority`. Silent, and catastrophic when that placeholder is then
+        # written to a live function.
+        local line name value
+        while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%$'\r'}"
+            case "$line" in ''|'#'*) continue ;; esac
+            case "$line" in *=*) ;; *) continue ;; esac
+            name="${line%%=*}"
+            value="${line#*=}"
+            name="$(printf '%s' "$name" | tr -d '[:space:]')"
+            [ -n "$name" ] || continue
+            # Strip one matching pair of surrounding quotes, as `source` did.
+            case "$value" in
+                \"*\") value="${value#\"}"; value="${value%\"}" ;;
+                \'*\') value="${value#\'}"; value="${value%\'}" ;;
+            esac
+            export "$name=$value"
+        done < .env
         print_success "Environment variables loaded from .env"
     else
         print_warning ".env file not found, using default/environment values"
@@ -384,43 +403,111 @@ configure_environment() {
         print_warning "Function may still be updating, attempting configuration anyway..."
     fi
     
-    # Create a temporary JSON file for environment variables
-    cat > /tmp/lambda-env.json << EOF
-{
-    "Variables": {
-        "NODE_ENV": "production",
-        "MONGODB_URL": "$MONGODB_URL",
-        "CLIENT_ID": "$CLIENT_ID",
-        "CLIENT_SECRET": "$CLIENT_SECRET",
-        "TENANT_ID": "$TENANT_ID",
-        "API_IDENTIFIER": "$API_IDENTIFIER",
-        "ACCESS_TOKEN_SECRET": "$ACCESS_TOKEN_SECRET",
-        "REFRESH_TOKEN_SECRET": "$REFRESH_TOKEN_SECRET",
-        "JWT_SECRET": "$JWT_SECRET",
-        "CORS_ORIGINS": "$CORS_ORIGINS",
-        "CLOUDINARY_CLOUD_NAME": "$CLOUDINARY_CLOUD_NAME",
-        "CLOUDINARY_API_KEY": "$CLOUDINARY_API_KEY",
-        "CLOUDINARY_API_SECRET": "$CLOUDINARY_API_SECRET",
-        "EMAIL_HOST": "$EMAIL_HOST",
-        "EMAIL_PORT": "$EMAIL_PORT",
-        "EMAIL_USER": "$EMAIL_USER",
-        "EMAIL_PASS": "$EMAIL_PASS",
-        "ADMIN_EMAIL": "$ADMIN_EMAIL",
-        "BASE_URL": "$BASE_URL"
-    }
+    # `update-function-configuration --environment` REPLACES the whole variable
+    # map rather than merging into it, so anything live but absent from the
+    # payload is silently deleted. Read the live map first and overlay only the
+    # values we actually have, so a deploy can add or change but never delete.
+    local current_file="/tmp/lambda-env-current.$$.json"
+    local merged_file="/tmp/lambda-env-merged.$$.json"
+
+    if ! aws lambda get-function-configuration \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --region "$AWS_REGION" \
+            --query 'Environment.Variables' --output json > "$current_file" 2>/dev/null; then
+        echo '{}' > "$current_file"
+    fi
+    # A function with no variables set returns the literal `null`.
+    if [ ! -s "$current_file" ] || [ "$(cat "$current_file")" = "null" ]; then
+        echo '{}' > "$current_file"
+    fi
+
+    # Names this script manages. Anything already on the function but absent
+    # from this list is carried through untouched.
+    export STORM_GATE_MANAGED_VARS="MONGODB_URL CLIENT_ID CLIENT_SECRET TENANT_ID
+        API_IDENTIFIER ACCESS_TOKEN_SECRET REFRESH_TOKEN_SECRET JWT_SECRET
+        CORS_ORIGINS CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET
+        EMAIL_HOST EMAIL_PORT EMAIL_USER EMAIL_PASS ADMIN_EMAIL BASE_URL
+        REDIRECT_URI EMAIL_INTEGRATOR_BASE_URL
+        JWT_SIGNING_ALG JWT_PRIVATE_KEY JWT_PUBLIC_KEY JWT_PREVIOUS_PUBLIC_KEYS
+        JWT_ISSUER"
+    export STORM_GATE_CURRENT_FILE="$current_file"
+    # Space-separated names to leave exactly as they are on the function, for
+    # when you are not sure whether your local copy or production is current.
+    export DEPLOY_SKIP_VARS="${DEPLOY_SKIP_VARS:-}"
+
+    # Values are passed through the environment rather than interpolated into a
+    # heredoc: a secret containing a quote or backslash would otherwise emit
+    # invalid JSON and take the whole deploy down with a parse error.
+    if ! node > "$merged_file" <<'NODE_MERGE'
+const fs = require('fs');
+const current = JSON.parse(fs.readFileSync(process.env.STORM_GATE_CURRENT_FILE, 'utf8') || '{}');
+
+// The fallbacks defined at the top of this script. Writing one of these over a
+// working production value is strictly worse than writing nothing at all.
+const PLACEHOLDERS = new Set([
+  'your-azure-client-id', 'your-azure-tenant-id', 'your-azure-client-secret',
+  'your-access-token-secret', 'your-refresh-token-secret', 'your-jwt-secret',
+  'your-cloudinary-name', 'your-cloudinary-key', 'your-cloudinary-secret',
+]);
+
+const skip = new Set((process.env.DEPLOY_SKIP_VARS || '').trim().split(/\s+/).filter(Boolean));
+const merged = { ...current, NODE_ENV: 'production' };
+const added = [], changed = [], unchanged = [], held = [];
+
+for (const name of process.env.STORM_GATE_MANAGED_VARS.trim().split(/\s+/)) {
+  const value = process.env[name];
+
+  if (skip.has(name)) { held.push(`${name} (DEPLOY_SKIP_VARS)`); continue; }
+  if (value === undefined || value === '') {
+    held.push(`${name} (not set locally${name in current ? ', keeping live value' : ''})`);
+    continue;
+  }
+  if (PLACEHOLDERS.has(value) || /username:password@cluster/.test(value)) {
+    held.push(`${name} (placeholder default)`);
+    continue;
+  }
+
+  if (!(name in current)) added.push(name);
+  else if (current[name] !== value) changed.push(name);
+  else unchanged.push(name);
+  merged[name] = value;
 }
-EOF
-    
-    # Update Lambda function configuration using the JSON file
+
+const log = (label, list) =>
+  fs.writeSync(2, `    ${label}: ${list.length ? list.join(', ') : '(none)'}\n`);
+log('adding  ', added);
+log('changing', changed);
+log('same    ', unchanged);
+log('holding ', held);
+fs.writeSync(2, `    preserved (unmanaged): ${
+  Object.keys(current).filter(k => !(k in merged) || !process.env.STORM_GATE_MANAGED_VARS.includes(k)).length
+} live var(s) carried through\n`);
+
+process.stdout.write(JSON.stringify({ Variables: merged }, null, 2));
+NODE_MERGE
+    then
+        print_error "Failed to build the merged environment payload"
+        rm -f "$current_file" "$merged_file"
+        return 1
+    fi
+
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        print_warning "DRY_RUN=1 — not applying. Merged payload written to $merged_file"
+        rm -f "$current_file"
+        return 0
+    fi
+
     aws lambda update-function-configuration \
-        --function-name $LAMBDA_FUNCTION_NAME \
-        --region $AWS_REGION \
-        --environment file:///tmp/lambda-env.json > /dev/null
-    
-    # Clean up temporary file
-    rm -f /tmp/lambda-env.json
-    
-    print_success "Environment variables configured successfully"
+        --function-name "$LAMBDA_FUNCTION_NAME" \
+        --region "$AWS_REGION" \
+        --environment "file://$merged_file" > /dev/null
+
+    aws lambda wait function-updated \
+        --function-name "$LAMBDA_FUNCTION_NAME" --region "$AWS_REGION" 2>/dev/null || true
+
+    rm -f "$current_file" "$merged_file"
+
+    print_success "Environment variables configured successfully (merged)"
 }
 
 # Create HTTP API Gateway
