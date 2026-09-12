@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file. See [Conven
 ### 🐛 Bug Fixes
 
 * **tests:** add tests for enhancedVerifyJWT to cover RS256 and Azure AD paths ([e7190e8](https://github.com/HoseaCodes/Storm-Gate/commit/e7190e857ea317412487d96d7e8f72407273984c))
+## [1.8.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.7.0...v1.8.0) (2026-09-12)
+
+### 🚀 Features
+
+* **auth:** implement RS256 signing for access tokens and add JWKS endpoint ([ede4d34](https://github.com/HoseaCodes/Storm-Gate/commit/ede4d3476dcda6cebe107eca5b741174617eef3d))
+* **tests:** add golden contract tests for auth middleware with RS256 support ([280d0ab](https://github.com/HoseaCodes/Storm-Gate/commit/280d0ab6ff0bd5e6a0528fe8b7ecac6726b15515))
 
 ## [1.8.0-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.7.0...v1.8.0-rc.1) (2026-09-12)
 
