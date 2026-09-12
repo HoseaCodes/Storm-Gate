@@ -3,10 +3,15 @@ name: Semantic Release
 # Releases the backend Node API only. The npm SDKs under packages/ are
 # versioned independently by changesets in release-packages.yml, so a
 # packages-only merge must not cut an API release.
+#
+# main    -> stable versions (1.8.0)
+# staging -> prerelease versions on the rc channel (1.8.0-rc.1), per the
+#            prerelease branch config in .releaserc.json.
 on:
   push:
     branches:
       - main
+      - staging
     paths-ignore:
       - 'packages/**'
       - '.changeset/**'
@@ -59,3 +64,54 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+
+      # The release commit (CHANGELOG.md, package.json, package-lock.json)
+      # lands only on the branch that cut it, so main and staging diverge the
+      # moment a stable release ships. Raise the back-merge here, in the same
+      # job: a release or push made with GITHUB_TOKEN cannot trigger a separate
+      # workflow, so an event-driven back-merge would silently never fire.
+      - name: Open back-merge PR to staging
+        if: github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if ! git fetch --quiet origin staging; then
+            echo "No staging branch on the remote yet; nothing to back-merge."
+            exit 0
+          fi
+
+          git fetch --quiet origin main
+
+          if git merge-base --is-ancestor origin/main origin/staging; then
+            echo "staging already contains main; nothing to back-merge."
+            exit 0
+          fi
+
+          existing=$(gh pr list --base staging --head main --state open \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "Back-merge PR #${existing} is already open."
+            exit 0
+          fi
+
+          cat > "$RUNNER_TEMP/backmerge.md" <<'EOF'
+          Automated back-merge so `staging` keeps the release commit that
+          semantic-release made on `main`. Without it, every later
+          `staging -> main` merge conflicts on `CHANGELOG.md`, `package.json`
+          and `package-lock.json`.
+
+          **Merge this with a merge commit, not a squash.** Squashing creates a
+          new commit, so `staging` would never actually contain `main` and the
+          conflicts would recur every cycle.
+
+          If `package.json` or `package-lock.json` conflict, either side is
+          fine -- the next release rewrites the version regardless.
+          `CHANGELOG.md` is declared `merge=union` in `.gitattributes`, so it
+          should resolve on its own.
+          EOF
+
+          gh pr create --base staging --head main \
+            --title 'chore: back-merge main into staging' \
+            --body-file "$RUNNER_TEMP/backmerge.md"

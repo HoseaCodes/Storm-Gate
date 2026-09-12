@@ -1,0 +1,12 @@
+# Release automation writes to CHANGELOG.md on both main (stable) and staging
+# (rc prereleases), so the two branches always have competing additions at the
+# top of the file. `union` keeps both sides instead of raising a conflict on
+# every staging -> main merge and every back-merge.
+#
+# Entries can land interleaved after a merge; the next release regenerates the
+# section headings, so it self-corrects.
+CHANGELOG.md merge=union
+
+# package-lock.json is generated. Never hand-resolve it: take either side and
+# run `npm install` to regenerate.
+package-lock.json -diff

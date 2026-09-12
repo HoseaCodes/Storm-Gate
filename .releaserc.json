@@ -1,6 +1,10 @@
 {
   "branches": [
-    "main"
+    "main",
+    {
+      "name": "staging",
+      "prerelease": "rc"
+    }
   ],
   "plugins": [
     [
