@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  # Deliberately unfiltered. `service` and `build-and-test` are required status
+  # checks, and a path-filtered check never reports on a PR it skips -- which
+  # leaves that PR permanently un-mergeable. A ~2 minute always-on run is
+  # cheaper than that deadlock.
+  pull_request:
+  push:
+    branches: [main, staging]
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'scripts/**'
+      - 'packages/**'
+      - 'vitest.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Stale PR runs are worth cancelling; a main run is the record for that
+  # commit, so let it finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Auth service: token signing, JWT verification, key discovery.
+  # Runs with no secrets configured -- the suite provisions its own ephemeral
+  # keys, so a missing ACCESS_TOKEN_SECRET in CI must never mask a failure.
+  service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test service
+        run: npm test
+
+  # Job id kept as-is: renaming it would change the status-check name that
+  # branch protection matches on.
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build packages
+        run: npm run build:packages
+
+      - name: Test packages
+        run: npm run test:packages
+
+      # Validates the published surface (exports map, types resolution across
+      # module systems) against the built dist/ before any of it is immutable
+      # on the registry.
+      - name: Check package contracts
+        run: npm run check:packages

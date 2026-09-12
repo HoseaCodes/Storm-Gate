@@ -1,0 +1,62 @@
+name: Release Packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - '.changeset/**'
+      - '.github/workflows/release-packages.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-packages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+
+      - name: Build packages
+        run: npm run build:packages
+
+      # The gate. This workflow publishes on merge of the changesets
+      # "version packages" PR, and that merge commit's tree is exactly what
+      # goes to the registry -- where a bad version can only be deprecated,
+      # never replaced. Verify it here, not just on the source PR.
+      - name: Test packages
+        run: npm run test:packages
+
+      - name: Check package contracts
+        run: npm run check:packages
+
+      - name: Create Release PR or Publish
+        uses: changesets/action@v1
+        with:
+          publish: npx changeset publish
+          version: npx changeset version
+          commit: 'chore(release): version packages'
+          title: 'chore(release): version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'

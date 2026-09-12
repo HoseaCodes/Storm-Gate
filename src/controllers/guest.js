@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
 import UnregisteredUser from '../models/unregisteredUser.js';
+import { signAccessToken } from '../utils/signingKeys.js';
 
 export const guestLogin = async (req, res) => {
   try {
@@ -21,9 +21,8 @@ export const guestLogin = async (req, res) => {
     const guestUser = await UnregisteredUser.create(guestUserData);
 
     // Generate access token for guest
-    const accessToken = jwt.sign(
+    const accessToken = signAccessToken(
       { id: guestUser._id, isGuest: true },
-      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: '1h' }
     );
 

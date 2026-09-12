@@ -1,6 +1,6 @@
 {
   "name": "storm-gate",
-  "version": "1.0.0",
+  "version": "1.8.0-rc.1",
   "description": "",
   "main": "src/server.js",
   "type": "module",
@@ -14,13 +14,15 @@
     "dev": "nodemon src/server.js",
     "dev:lambda": "nodemon src/lambda-app.js",
     "secrets": "sh scripts/getEnvVars.sh",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "test:oidc": "node test-oidc.js",
     "build": "echo 'No build step required for Node.js app'",
     "build:packages": "npm run build --workspaces --if-present",
     "test:packages": "npm run test --workspaces --if-present",
+    "check:packages": "npm run check:exports --workspaces --if-present",
     "changeset": "changeset",
-    "release": "npm run build:packages && changeset publish"
+    "release": "npm run build:packages && changeset publish",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "Dominique Hosea",
@@ -53,12 +55,20 @@
     "winston": "^3.13.0"
   },
   "devDependencies": {
-    "@arethetypeswrong/cli": "^0.15.4",
+    "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^2.27.9",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@semantic-release/changelog": "6.0.3",
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/git": "10.0.1",
+    "@semantic-release/github": "11.0.6",
+    "@semantic-release/npm": "12.0.2",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "conventional-changelog-conventionalcommits": "9.3.1",
     "nodemon": "^3.1.0",
     "publint": "^0.2.12",
+    "semantic-release": "24.2.9",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
