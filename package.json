@@ -14,13 +14,14 @@
     "dev": "nodemon src/server.js",
     "dev:lambda": "nodemon src/lambda-app.js",
     "secrets": "sh scripts/getEnvVars.sh",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "test:oidc": "node test-oidc.js",
     "build": "echo 'No build step required for Node.js app'",
     "build:packages": "npm run build --workspaces --if-present",
     "test:packages": "npm run test --workspaces --if-present",
     "changeset": "changeset",
-    "release": "npm run build:packages && changeset publish"
+    "release": "npm run build:packages && changeset publish",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "Dominique Hosea",

@@ -19,6 +19,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import userController from './controllers/user.js';
 import auth from './utils/auth.js';
+import wellKnownRouter from './routes/wellKnown.js';
 import serverless from 'serverless-http';
 
 // Load environment variables
@@ -83,6 +84,10 @@ if (isLambda) {
 // Swagger setup
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Key discovery, mounted ahead of rate limiting so verifiers can always reach
+// the JWKS (see src/server.js for the reasoning).
+app.use(wellKnownRouter);
 
 // Rate limiting configuration based on environment
 if (isLocal) {

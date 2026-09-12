@@ -1,9 +1,13 @@
-name: Packages CI
+name: CI
 
 on:
   pull_request:
     paths:
+      - 'src/**'
+      - 'test/**'
+      - 'scripts/**'
       - 'packages/**'
+      - 'vitest.config.js'
       - 'package.json'
       - 'package-lock.json'
       - '.changeset/**'
@@ -11,11 +15,35 @@ on:
   push:
     branches: [main]
     paths:
+      - 'src/**'
+      - 'test/**'
+      - 'scripts/**'
       - 'packages/**'
+      - 'vitest.config.js'
       - 'package.json'
       - 'package-lock.json'
 
 jobs:
+  # Auth service: token signing, JWT verification, key discovery.
+  # Runs with no secrets configured -- the suite provisions its own ephemeral
+  # keys, so a missing ACCESS_TOKEN_SECRET in CI must never mask a failure.
+  service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test service
+        run: npm test
+
+  # Job id kept as-is: renaming it would change the status-check name that
+  # branch protection matches on.
   build-and-test:
     runs-on: ubuntu-latest
     steps:

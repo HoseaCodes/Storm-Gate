@@ -1,6 +1,11 @@
 
 import jwt from "jsonwebtoken";
 import crypto from 'crypto';
+import {
+	getIssuer,
+	getPublicKeyByKid,
+	signAccessToken,
+} from './signingKeys.js';
 
 const auth = (req, res, next) => {
 	try {
@@ -13,7 +18,30 @@ const auth = (req, res, next) => {
 			? authHeader.substring(7) 
 			: authHeader;
 
-		jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+		// Storm-Gate issues HS256 today and RS256 once JWT_SIGNING_ALG is flipped.
+		// Both must verify during the drain window, since 1-day access tokens
+		// signed before the flip stay valid after it. Select the key from the
+		// token header, then pin `algorithms` to exactly the one that key can
+		// validate -- an unpinned verify is what turns a published public key
+		// into an HMAC-confusion forgery.
+		const header = jwt.decode(token, { complete: true })?.header;
+		let verifyKey = process.env.ACCESS_TOKEN_SECRET;
+		const verifyOptions = { algorithms: ['HS256'] };
+
+		if (header?.alg === 'RS256') {
+			const publicKey = header.kid ? getPublicKeyByKid(header.kid) : null;
+			if (!publicKey) {
+				return res
+					.status(400)
+					.json({ msg: "Invalid Authentication - unknown signing key" });
+			}
+			verifyKey = publicKey;
+			verifyOptions.algorithms = ['RS256'];
+			const issuer = getIssuer();
+			if (issuer) verifyOptions.issuer = issuer;
+		}
+
+		jwt.verify(token, verifyKey, verifyOptions, (err, user) => {
       if (err instanceof jwt.TokenExpiredError) {
         return res
         .status(400)
@@ -141,9 +169,12 @@ export const verifyJWT = async (req, res, next) => {
 
 
 export const createAccessToken = (user) => {
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1d" });
+  return signAccessToken(user, { expiresIn: "1d" });
 };
 
+// Refresh tokens stay HS256 on REFRESH_TOKEN_SECRET on purpose: only Storm-Gate
+// ever verifies them, so there is no third-party verifier to serve and no
+// reason to widen this change's blast radius.
 export const createRefreshToken = (user) => {
   return jwt.sign(user, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
 };
