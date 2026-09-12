@@ -8,6 +8,9 @@ on:
       - '.changeset/**'
       - '.github/workflows/release-packages.yml'
 
+permissions:
+  contents: read
+
 concurrency:
   group: release-packages-${{ github.ref }}
   cancel-in-progress: false
@@ -15,6 +18,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
       pull-requests: write
@@ -26,7 +30,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
           registry-url: 'https://registry.npmjs.org'
 
@@ -34,6 +38,16 @@ jobs:
 
       - name: Build packages
         run: npm run build:packages
+
+      # The gate. This workflow publishes on merge of the changesets
+      # "version packages" PR, and that merge commit's tree is exactly what
+      # goes to the registry -- where a bad version can only be deprecated,
+      # never replaced. Verify it here, not just on the source PR.
+      - name: Test packages
+        run: npm run test:packages
+
+      - name: Check package contracts
+        run: npm run check:packages
 
       - name: Create Release PR or Publish
         uses: changesets/action@v1
