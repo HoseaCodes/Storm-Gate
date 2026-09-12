@@ -70,8 +70,15 @@ jobs:
       # moment a stable release ships. Raise the back-merge here, in the same
       # job: a release or push made with GITHUB_TOKEN cannot trigger a separate
       # workflow, so an event-driven back-merge would silently never fire.
+      #
+      # By the time this runs the release is already tagged, pushed and
+      # published, so a back-merge problem must never redden a shipped release:
+      # re-running would not fix it (semantic-release would no-op) and a red
+      # check on a successful release just teaches everyone to ignore red.
+      # Every failure here downgrades to a warning.
       - name: Open back-merge PR to staging
         if: github.ref_name == 'main'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -90,7 +97,7 @@ jobs:
           fi
 
           existing=$(gh pr list --base staging --head main --state open \
-            --json number --jq '.[0].number // empty')
+            --json number --jq '.[0].number // empty' || true)
           if [ -n "$existing" ]; then
             echo "Back-merge PR #${existing} is already open."
             exit 0
@@ -112,6 +119,25 @@ jobs:
           should resolve on its own.
           EOF
 
-          gh pr create --base staging --head main \
-            --title 'chore: back-merge main into staging' \
-            --body-file "$RUNNER_TEMP/backmerge.md"
+          compare="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/staging...main?expand=1"
+
+          if out=$(gh pr create --base staging --head main \
+              --title 'chore: back-merge main into staging' \
+              --body-file "$RUNNER_TEMP/backmerge.md" 2>&1); then
+            echo "$out"
+            exit 0
+          fi
+
+          echo "$out"
+
+          # GITHUB_TOKEN cannot open PRs unless the repository opts in under
+          # Settings > Actions > General > Workflow permissions. Note that
+          # changesets/action hits this same wall when it opens its
+          # "version packages" PR.
+          if printf '%s' "$out" | grep -q 'not permitted to create or approve pull requests'; then
+            echo "::warning title=Back-merge PR not created::GitHub Actions is not allowed to open pull requests in this repository. Enable it under Settings > Actions > General > Workflow permissions, or open the back-merge by hand at ${compare}"
+          else
+            echo "::warning title=Back-merge PR not created::gh pr create failed (see log above). Open the back-merge by hand at ${compare}"
+          fi
+
+          exit 0
