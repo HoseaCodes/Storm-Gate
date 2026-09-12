@@ -1,358 +1,195 @@
-
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
-
 <div align="center">
-  <a href="https://github.com/your_username/repo_name">
-    
-  <img alt="logo" src="https://github.com/HoseaCodes/Storm-Gate/assets/66652422/0f4f708b-06bc-4ecd-a160-60ee6ea8dbf7">
-
-  </a>
+  <img alt="Storm-Gate" src="https://github.com/HoseaCodes/Storm-Gate/assets/66652422/0f4f708b-06bc-4ecd-a160-60ee6ea8dbf7">
   <br />
-  <p align="center">
-    Fortifying Authentication, Unleashing Confidence.
-    <br />
-    <a href="https://github.com/your_username/repo_name"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/your_username/repo_name">View Demo</a>
-    ·
-    <a href="https://github.com/your_username/repo_name/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/your_username/repo_name/issues">Request Feature</a>
-  </p>
+  <p><em>Fortifying authentication, unleashing confidence.</em></p>
 </div>
 
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li><a href="#about-the-project">About The Project</a></li>
-    <li><a href="#built-with">Built With</a></li>
-    <li><a href="#getting-started">Getting Started</a></li>
-    <li><a href="#deployment">Deployment</a></li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#release-history">Release History</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-  </ol>
-</details>
+[![CI](https://github.com/HoseaCodes/Storm-Gate/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/HoseaCodes/Storm-Gate/actions/workflows/ci.yml)
+[![Release](https://github.com/HoseaCodes/Storm-Gate/actions/workflows/changelog.yml/badge.svg?branch=main)](https://github.com/HoseaCodes/Storm-Gate/actions/workflows/changelog.yml)
+[![Node 20](https://img.shields.io/badge/Node-20.x-339933)](https://nodejs.org/)
+[![Express 4](https://img.shields.io/badge/Express-4.19-000000)](https://expressjs.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248)](https://www.mongodb.com/atlas)
+[![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-ff9900)](https://aws.amazon.com/lambda/)
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
+A Node.js authentication service and the two SDKs that consume it. Storm-Gate issues
+and verifies JWT access and refresh tokens, brokers Azure Entra ID sign-in, and
+publishes its signing keys at `/.well-known/jwks.json` so consumers can verify tokens
+without holding a secret that would also let them mint one.
 
-<!-- ![IMG_9371](https://github.com/HoseaCodes/Storm-Gate/assets/66652422/bde9f6a2-e64a-4994-b278-5634eba75c2a) -->
+It runs on AWS Lambda behind API Gateway with MongoDB Atlas, and also runs as a plain
+Express process for local development.
 
-![Deployment](deployment.png)
+> **Scope.** This is a working single-author service, not a framework or a reference
+> implementation. The token and key-management code is covered by 85 tests and is the
+> part worth reading; much of the surrounding surface — uploads, admin, user CRUD — has
+> no automated coverage. [ARCHITECTURE.md](ARCHITECTURE.md) is candid about where the
+> seams are, including a dependency audit that currently reports 3 critical and 30 high
+> advisories in the production tree.
 
+## What's in here
 
-Storm Gate is an advanced authentication API service meticulously crafted with Node.js, offering unparalleled security and reliability for user authentication processes. Now deployed on AWS Lambda with MongoDB Atlas, it leverages modern serverless infrastructure to ensure seamless performance, auto-scaling, and global availability. Featuring Azure AD integration for enterprise-grade authentication, the service provides developers with a powerful, production-ready tool to authenticate users with ease and confidence, safeguarding their applications from unauthorized access.
+| Path | What it is |
+| --- | --- |
+| `src/` | The auth service — routes, controllers, token issuance, signing-key management |
+| `packages/express/` | [`@storm-gate/express`](packages/express/README.md) — Express middleware that verifies Storm-Gate tokens |
+| `packages/client/` | [`@storm-gate/client`](packages/client/README.md) — browser SDK for login, refresh, and cookie handling |
+| `test/` | Service-level tests for token signing, JWT verification, and key discovery |
 
-- ⚡ **Serverless auto-scaling**
-- 🛡️ **Azure AD secure authentication**
-- 🗂️ **Cloudinary media handling**
-- 🔐 **JWT access + refresh token rotation**
-- 🔄 **Continuous deployment pipeline using AWS ECR + Lambda**
-- ☁️ **Global availability through API Gateway**
+The service and the SDKs version independently. The service follows the repo's git
+tags; each SDK carries its own npm version.
 
-**🌐 Live Application**: Deployed on AWS Lambda (Serverless)
+## Quickstart
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-### Built With
-
-List the technologies, frameworks, and libraries that you used in your project.
-
-- [NodeJS](https://nodejs.org/en)
-- [ExpressJS](https://expressjs.com/)
-- [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-- [Azure AD](https://azure.microsoft.com/en-us/services/active-directory/)
-- [AWS Lambda](https://aws.amazon.com/lambda/) - Serverless deployment platform
-- [AWS API Gateway](https://aws.amazon.com/api-gateway/)
-- [AWS ECR](https://aws.amazon.com/ecr/)
-- [Cloudinary](https://cloudinary.com/) - Image and video management
-- [JWT](https://jwt.io/) - JSON Web Tokens for authentication
-  
-_Deprecated technologies:_
-- ~~[Nginx](https://www.nginx.com/)~~ 
-- ~~[AWS EC2](https://aws.amazon.com/ec2/)~~
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-<!-- GETTING STARTED -->
-## Getting Started
-
-Provide instructions on how to set up and run your project locally. Include prerequisites, installation steps, and any other necessary information.
-
-### Prerequisites
-
-  Ensure you have installed:
-
-- Node.js 18+
-- Docker Desktop
-- AWS CLI (configured)
-- MongoDB Atlas connection string
+### Verify Storm-Gate tokens in your own service
 
 ```sh
-npm install npm@latest -g
+npm install @storm-gate/express jsonwebtoken
 ```
 
-### Installation
+```js
+import express from 'express';
+import { createRequireAuth } from '@storm-gate/express';
 
-1. Clone the repository:
+const app = express();
 
-```sh
-git clone https://github.com/HoseaCodes/Storm-Gate
-```
+// RS256: verifies locally against Storm-Gate's published public keys.
+// No shared signing secret, no per-request callback.
+const requireAuth = createRequireAuth({
+  jwksUri: `${process.env.STORM_GATE_URL}/.well-known/jwks.json`,
+  issuer: process.env.STORM_GATE_URL,
+});
 
-2. Navigate to the project directory:
-
-```sh
-cd Storm-Gate
-```
-
-3. Install dependencies:
-
-```sh
-npm install
-```
-
-4. Configure and set up any environment variables or settings if needed.
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-<!-- DEPLOYMENT -->
-## Deployment
-
-Storm Gate is successfully deployed and running on **AWS Lambda** (Serverless) using a Docker image.
-
-### Deployment Information
-
-- **🌐 Platform**: AWS Lambda (Serverless)
-- **🏥 Health Check**: Available via Lambda function invocation
-- **📚 API Documentation**: Available via Lambda function endpoints
-- **🚀 Deployment**: One-command deployment with `./deploy-lambda-complete.sh`
-
-### Quick Deployment Commands
-
-```bash
-# Clean up any existing resources and deploy fresh
-./cleanup-lambda.sh --force
-./deploy-lambda-complete.sh
-```
-
-### Lambda Only Updates
-
-```bash
-# Update Lambda function only, keep existing API Gateway
-./deploy-lambda-complete.sh --skip-api-gateway
-```
-
-### Common Deployment Issues & Solutions
-
-During deployment, we encountered and resolved several critical issues:
-
-#### 1. MongoDB Connection Error
-**Problem**: The app was trying to connect to `::1:27017` (localhost) instead of MongoDB Atlas.
-
-**Solution**: Properly configured the `MONGODB_URL` environment variable to point to the MongoDB Atlas cluster.
-
-#### 2. Network Binding Issue
-**Problem**: The server was not listening on the correct interface for containerized environments.
-
-**Solution**: Fixed the server to bind to `0.0.0.0:8080` instead of just `localhost`:
-
-```javascript
-// Fixed server binding in src/server.js
-app.listen(port, '0.0.0.0', function () {
-  console.log(`Express app running on port: ${port}`);
+app.get('/api/articles', requireAuth, (req, res) => {
+  res.json({ owner: req.user.id });   // req.user = { id, iat, exp }
 });
 ```
 
-#### 3. Docker Build Dependencies
-**Problem**: Native modules like `jpegtran-bin` required build tools for compilation.
+Passing `secret` instead verifies HS256; passing both accepts either, which is what
+you deploy during an HS256 → RS256 cutover. See
+[`packages/express/README.md`](packages/express/README.md) for all three modes and
+[`MIGRATION.md`](packages/express/MIGRATION.md) for the cutover sequence.
 
-**Solution**: Updated Dockerfile to include necessary build dependencies:
+### Browser client
 
-```dockerfile
-# Install build dependencies for native modules
-RUN apk add --no-cache \
-    gcc \
-    g++ \
-    make \
-    python3 \
-    autoconf \
-    automake \
-    libtool \
-    nasm \
-    libpng-dev \
-    libjpeg-turbo-dev
+```sh
+npm install @storm-gate/client axios
 ```
 
-### Environment Variables
+```js
+import { createStormGateClient } from '@storm-gate/client';
 
-The following environment variables are properly configured in production:
-
-- `MONGODB_URL` - MongoDB Atlas connection string
-- `ACCESS_TOKEN_SECRET` & `REFRESH_TOKEN_SECRET` - JWT token secrets
-- `TENANT_ID`, `CLIENT_ID`, `CLIENT_SECRET` - Azure AD configuration
-- `EMAIL_USER`, `EMAIL_PASS`, `ADMIN_EMAIL` - Email service configuration
-- `CLOUND_NAME`, `CLOUD_API_KEY`, `CLOUD_API_SECRET` - Cloudinary configuration
-- `BASE_URL`, `REDIRECT_URI` - Application URLs
-- `NODE_ENV` - Set to `production`
-
-### Deployment Features
-
-✅ **Auto-scaling**: AWS Lambda automatically scales from 0 to thousands of requests  
-✅ **Health Monitoring**: CloudWatch monitoring and logging built-in  
-✅ **Environment Security**: All sensitive data properly configured as Lambda environment variables  
-✅ **Production Ready**: Optimized Docker container with Lambda runtime  
-✅ **Azure AD Integration**: Full OAuth authentication flow configured for production  
-
-### Post-Deployment Requirements
-
-**Important**: After deployment, make sure to update your Azure AD app registration:
-
-1. Go to your Azure AD app registration
-2. Navigate to "Authentication" settings
-3. Add your Lambda function URL or API Gateway URL for the redirect URI
-4. Save the configuration
-
-### Monitoring & Maintenance
-
-Monitor your application using AWS CLI and CloudWatch:
-
-```bash
-# Check Lambda function status
-aws lambda get-function --function-name storm-gate --region us-east-1
-
-# View real-time logs
-aws logs tail /aws/lambda/storm-gate --follow --region us-east-1
-
-# Test Lambda function
-aws lambda invoke --function-name storm-gate --payload '{"httpMethod":"GET","path":"/health"}' response.json
-
-# Deploy updates
-./deploy-lambda-complete.sh
+const client = createStormGateClient({ baseUrl: process.env.STORM_GATE_URL });
+await client.login({ email, password });
 ```
 
-### Deployment Architecture
+Full API in [`packages/client/README.md`](packages/client/README.md).
 
-- **Platform**: AWS Lambda (Serverless computing platform)
-- **Runtime**: Node.js 18 (Lambda container runtime)
-- **Database**: MongoDB Atlas (Cloud database)
-- **Authentication**: Azure AD (Enterprise identity platform)
-- **File Storage**: Cloudinary (Image and video management)
-- **Email Service**: Gmail SMTP (Transactional emails)
-- **Container Registry**: AWS ECR (Elastic Container Registry)
+## Running the service
 
-<p align="right">(<a href="#top">back to top</a>)</p>
+Requires Node 20 (see [`.nvmrc`](.nvmrc)) and a reachable MongoDB.
 
-<!-- USAGE -->
-## Usage
+```sh
+cp .env.example .env     # then fill it in
+npm ci
+npm run dev              # Express on PORT (default 3001)
+npm run dev:lambda       # the Lambda handler locally
+```
 
-Provide examples, use cases, or detailed instructions on how to use your project. Include code snippets or screenshots if applicable.
+Swagger UI is served at `/api-docs`. Health check is `GET /health`.
 
-For more examples, please refer to the [Documentation](https://example.com).
+With Docker instead:
 
-<p align="right">(<a href="#top">back to top</a>)</p>
+```sh
+make compose-up          # docker-compose, builds and runs
+make test-local          # build, run detached, assert /health, tear down
+```
 
-<!-- RELEASE -->
-## Release History
+## Configuration
 
-See [Change Log](CHANGELOG.md)
+Every variable is documented inline in [`.env.example`](.env.example), which is the
+source of truth. The ones that change behaviour rather than just supplying credentials:
 
-<p align="right">(<a href="#top">back to top</a>)</p>
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `JWT_SIGNING_ALG` | `HS256` | `RS256` switches access tokens to asymmetric signing. Refresh tokens stay HS256 either way. |
+| `JWT_PRIVATE_KEY` | — | RSA private key for RS256. Accepts raw PEM, base64 PEM, or PEM with `\n` escapes. Generate with `node scripts/generate-jwt-keys.mjs`. |
+| `JWT_PREVIOUS_PUBLIC_KEYS` | — | Retired public keys kept in the JWKS so tokens signed by them verify until they expire. This is what makes key rotation non-breaking. |
+| `JWT_ISSUER` | — | Stamped as `iss` on RS256 tokens. Consumers passing `issuer` must match it. |
+| `CORS_ORIGINS` | `localhost:3000,3003` | Allowlist for credentialed cross-origin requests. **Must be set in production** or `/refresh_token` cookies will not round-trip. |
 
-<!-- ROADMAP -->
-## Roadmap
+Leaving `JWT_SIGNING_ALG` unset while setting `JWT_PRIVATE_KEY` publishes the public
+key *without* switching issuance — so consumers can move to RS256 verification before
+the issuer changes.
 
-Outline the future plans and enhancements you have for the project. You can list completed tasks and upcoming features.
+## Commands
 
-- [x] ~~Deploy on EC2~~ (Legacy deployment)
-- [x] **Deploy on AWS Lambda** (Current serverless deployment)
-- [x] **MongoDB Atlas Integration** (Cloud database)
-- [x] **Azure AD Authentication** (Enterprise identity)
-- [x] **Cloudinary Integration** (Image management)
-- [x] **Auto-scaling Infrastructure** (AWS Lambda serverless)
-- [x] **Production Environment Variables** (Secure secrets management)
-- [x] **Health Monitoring & API Documentation** (Operational readiness)
-<!-- - [ ] Feature 3 -->
-<!-- - [ ] Feature 4
-  - [ ] Sub Feature 1
-  - [ ] Sub Feature 2 -->
+```sh
+npm test                 # service tests (85, no secrets or database needed)
+npm run test:packages    # SDK tests
+npm run build:packages   # build both SDKs with tsup
+npm run check:packages   # publint + are-the-types-wrong on the built output
+npx changeset            # record an SDK change for release
+```
 
-See the [open issues](https://github.com/your_username/Storm-Gate/issues) for a full list of proposed features and known issues.
+## Branching and releases
 
-<p align="right">(<a href="#top">back to top</a>)</p>
+```
+feature ──PR──> staging ──PR──> main
+                  │               │
+                  v               v
+            1.8.0-rc.1          1.8.0
+            (prerelease)        (stable)
+```
 
-<!-- CONTRIBUTING -->
+Features land on `staging`, which cuts `rc` prereleases. Promoting `staging` to `main`
+cuts the stable release and publishes any SDKs with pending changesets.
+
+- **PR titles must be conventional commits.** Squash merges use the title as the commit
+  message, and the released version is derived from it. `feat:` is a minor bump,
+  `fix:`/`perf:`/`refactor:` a patch, `docs:`/`chore:`/`ci:`/`test:` no release.
+- **`staging` → `main` must be a merge commit, never a squash.** A squash creates a new
+  commit, so `main` never contains `staging` and every later promotion re-conflicts.
+  A back-merge PR opens automatically afterwards; merge that too.
+- **SDK changes need a changeset** (`npx changeset`) or they publish nothing.
+
+Version history lives in [CHANGELOG.md](CHANGELOG.md) and in GitHub Releases.
+
+## Deployment
+
+Deployment is currently a **manual, operator-run step** — there is no deploy workflow,
+and no staging environment on AWS.
+
+```sh
+make lambda-deploy       # build, push to ECR, update Lambda + API Gateway
+make lambda-logs-follow  # tail CloudWatch
+```
+
+The full runbook, including the native-module and image-size pitfalls, is in
+[README-lambda.md](README-lambda.md). `deploy-lambda-complete.sh` takes
+`LAMBDA_FUNCTION_NAME`, `ECR_REPOSITORY_NAME`, `IMAGE_TAG`, `API_STAGE_NAME`, and
+`AWS_REGION` as environment overrides, so it can target more than one environment
+without modification.
+
+## Architecture and engineering notes
+
+[ARCHITECTURE.md](ARCHITECTURE.md) covers the token model, why refresh tokens stay
+symmetric, how algorithm-confusion attacks are rejected, the key-rotation drain window,
+what the tests actually cover, and a frank list of known limitations.
+
 ## Contributing
 
-Explain how others can contribute to your project. Include guidelines for pull requests and contributions.
+Open a PR against `staging`. The PR template lists what CI checks. Both the `service`
+and `build-and-test` jobs must pass.
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-See Contribution file
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-<!-- LICENSE -->
 ## License
 
-Distributed under the [MIT License](LICENSE). See `LICENSE` for more information.
+The service (`storm-gate`) declares **ISC**; both published SDKs declare **MIT**. There
+is no `LICENSE` file in the repository yet, so treat the `license` field in each
+`package.json` as authoritative until one is added.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-<!-- CONTACT -->
 ## Contact
 
-- Name - [@DominiqueRHosea](https://twitter.com/DominiqueRHosea)
-- Email - info@ambitiousconcept.com
-- Project Link: [https://github.com/HoseaCodes/Storm-Gate](https://github.com/HoseaCodes/Storm-Gate)
+Dominique Hosea — [@DominiqueRHosea](https://twitter.com/DominiqueRHosea) ·
+info@ambitiousconcept.com
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-<!-- ACKNOWLEDGMENTS -->
-## Acknowledgments
-
-List any resources, libraries, or tools that you used or were inspired by during the development of your project.
-
-* [Node-Cache](https://www.npmjs.com/package/node-cache)
-* [Imagemin](https://www.npmjs.com/package/imagemin)
-* [Bcrypt](https://www.npmjs.com/package/bcrypt)
-* [Jsonwebtoken](https://jwt.io/)
-* [PM2](https://pm2.keymetrics.io/)
-* [Mongoose](https://mongoosejs.com/)
-
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-
-Feel free to customize the content and replace placeholders with your project-specific information.
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/othneildrew/Best-README-Template.svg?style=for-the-badge
-[contributors-url]: https://github.com/othneildrew/Best-README-Template/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=for-the-badge
-[forks-url]: https://github.com/othneildrew/Best-README-Template/network/members
-[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge
-[stars-url]: https://github.com/othneildrew/Best-README-Template/stargazers
-[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge
-[issues-url]: https://github.com/othneildrew/Best-README-Template/issues
-[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
-[license-url]: https://github.com/othneildrew/Best-README-Template/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/othneildrew
-[product-screenshot]: images/screenshot.png
+[github.com/HoseaCodes/Storm-Gate](https://github.com/HoseaCodes/Storm-Gate)

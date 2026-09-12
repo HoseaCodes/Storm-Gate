@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.8.1-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.8.0...v1.8.1-rc.1) (2026-09-12)
+
+### 🐛 Bug Fixes
+
+* **tests:** add tests for enhancedVerifyJWT to cover RS256 and Azure AD paths ([e7190e8](https://github.com/HoseaCodes/Storm-Gate/commit/e7190e857ea317412487d96d7e8f72407273984c))
+
+## [1.8.0-rc.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.8.0-rc.1...v1.8.0-rc.2) (2026-09-12)
+
+### 🐛 Bug Fixes
+
+* **tests:** add tests for enhancedVerifyJWT to cover RS256 and Azure AD paths ([e7190e8](https://github.com/HoseaCodes/Storm-Gate/commit/e7190e857ea317412487d96d7e8f72407273984c))
 ## [1.8.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.7.0...v1.8.0) (2026-09-12)
 
 ### 🚀 Features
