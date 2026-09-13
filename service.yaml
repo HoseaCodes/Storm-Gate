@@ -1,0 +1,40 @@
+apiVersion: opsatlas.ambitiousconcepts.io/v1
+kind: Service
+metadata:
+  name: storm-gate
+  displayName: Storm-Gate
+  repository: HoseaCodes/Storm-Gate
+  description: >-
+    Node.js authentication service. Issues and verifies JWT access and refresh
+    tokens, brokers Azure Entra ID sign-in, and publishes its signing keys at
+    /.well-known/jwks.json so consumers verify tokens without holding a minting
+    secret. Runs on AWS Lambda behind API Gateway with MongoDB Atlas; also runs
+    as a plain Express process for local development. Ships two SDKs,
+    @storm-gate/express and @storm-gate/client.
+spec:
+  tier: 1
+  lifecycle: active
+  runtime: node
+  environments:
+    - name: production
+      url: https://3ynqb3302m.execute-api.us-east-1.amazonaws.com
+  health:
+    readiness: /health
+  operations:
+    runbook: README-lambda.md
+    contact: info@ambitiousconcept.com
+  journeys:
+    - Sign in with email and password
+    - Sign in with Azure Entra ID
+    - Stay signed in through refresh-token rotation
+    - Verify an access token against the published JWKS
+    - Upload an image through the authenticated upload API
+  dependencies:
+    - name: mongodb-atlas
+      kind: datastore
+    - name: azure-entra-id
+      kind: external
+    - name: cloudinary
+      kind: external
+    - name: email-integrator
+      kind: service
