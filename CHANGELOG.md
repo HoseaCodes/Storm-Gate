@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.3-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.2...v1.9.3-rc.1) (2026-09-14)
+
+### 🐛 Bug Fixes
+
+* **publish-image:** update image name handling to ensure lowercase repository names ([a762795](https://github.com/HoseaCodes/Storm-Gate/commit/a762795ad1450f84fae0640ba8533ca88aef03d6))
+
 ## [1.9.2-rc.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.2-rc.1...v1.9.2-rc.2) (2026-09-14)
 
 ### 🐛 Bug Fixes
