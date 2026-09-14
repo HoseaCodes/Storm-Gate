@@ -4,6 +4,13 @@ name: Publish image
 # provider it can start from compose. Published from CI rather than from a
 # laptop so that what runs is built from a commit anyone can check out, by a
 # process anyone can read.
+#
+# Each architecture is built on a runner of its own architecture and pushed by
+# digest; a final job stitches the digests into one manifest list under the real
+# tags. The single emulated job this replaces built amd64 natively and arm64
+# under QEMU, where it spent thirteen minutes before QEMU killed it with an
+# illegal instruction - emulated Node is not a thing to bet a release on. The
+# arm64 runners are free for public repositories, which this is.
 on:
   push:
     branches: [main, master]
@@ -19,12 +26,15 @@ env:
   IMAGE: ${{ github.repository }}
 
 jobs:
-  publish:
+  # An image is not published unless the suite that covers token signing and key
+  # management passes. A broken authentication service that starts is worse than
+  # one that does not. Its own job, on one runner: the tests are the same on
+  # every architecture, and running them per-architecture only buys two chances
+  # to flake.
+  verify:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # The only write this workflow has, and it is the one it needs.
-      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -34,9 +44,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      # An image is not published unless the suite that covers token signing and
-      # key management passes. A broken authentication service that starts is
-      # worse than one that does not.
       - run: npm ci
       - run: npm test
 
@@ -46,7 +53,38 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
-      - uses: docker/setup-qemu-action@v3
+  build:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      # The only write this workflow has, and it is the one it needs.
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # `linux/amd64` is not a legal artifact name.
+      - name: Name this platform
+        run: echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
+        env:
+          platform: ${{ matrix.platform }}
+
+      # github.repository is mixed case and GHCR paths are not. metadata-action
+      # lower-cases this for us, but the digest push below names the repository
+      # directly and so has to do it itself.
+      - name: Lower-case the image name
+        id: image
+        run: echo "name=$REGISTRY/$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -54,6 +92,66 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Only for the labels here. The tags belong to the manifest list, not to
+      # either of the single-architecture images underneath it.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          # Scoped per platform: one shared scope means each architecture keeps
+          # evicting the other's layers and neither ever gets a cache hit.
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      - name: Export the digest
+        run: |
+          mkdir -p /tmp/digests
+          digest='${{ steps.build.outputs.digest }}'
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Until this runs, the two builds above are untagged digests that nothing
+  # points at. This is the step that publishes.
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lower-case the image name
+        id: image
+        run: echo "name=$REGISTRY/$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - id: meta
         uses: docker/metadata-action@v5
@@ -65,15 +163,14 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
 
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          # arm64 as well as amd64: the people running this locally are on Apple
-          # silicon, and an amd64-only image would run there under emulation -
-          # slowly enough that somebody would eventually stop using it.
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create the manifest list
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ steps.image.outputs.name }}@sha256:%s ' *)
+
+      # Cheap, and it is the only thing that proves both architectures actually
+      # made it into the tag people will pull.
+      - name: Inspect the published image
+        run: docker buildx imagetools inspect ${{ steps.image.outputs.name }}:${{ steps.meta.outputs.version }}
