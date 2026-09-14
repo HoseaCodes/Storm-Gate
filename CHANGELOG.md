@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file. See [Conven
 ### 🐛 Bug Fixes
 
 * **publish-image:** update image name handling to ensure lowercase repository names ([a762795](https://github.com/HoseaCodes/Storm-Gate/commit/a762795ad1450f84fae0640ba8533ca88aef03d6))
+## [1.9.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.1...v1.9.2) (2026-09-14)
+
+### 🐛 Bug Fixes
+
+* **publish-image:** update image naming to use lower-cased repository names ([5ff6118](https://github.com/HoseaCodes/Storm-Gate/commit/5ff611838ee622541d89a71dea061bfbec8699c0))
 
 ## [1.9.2-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.1...v1.9.2-rc.1) (2026-09-14)
 
