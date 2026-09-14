@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.0-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.8.2-rc.1...v1.9.0-rc.1) (2026-09-13)
+
+### 🚀 Features
+
+* **service:** add initial service configuration for Storm-Gate ([2529c32](https://github.com/HoseaCodes/Storm-Gate/commit/2529c32a2c248f3bb9f2bd616df27908281535e3))
+
+## [1.8.2-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.8.1...v1.8.2-rc.1) (2026-09-12)
+
+### 🐛 Bug Fixes
+
+* improve environment variable loading and merging for Lambda deployment ([8a214c0](https://github.com/HoseaCodes/Storm-Gate/commit/8a214c050eb815a2d83f8a195bdb677ebae41e0f))
+
 ## [1.8.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.8.0...v1.8.1) (2026-09-12)
 
 ### 🐛 Bug Fixes
