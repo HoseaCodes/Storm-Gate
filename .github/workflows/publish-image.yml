@@ -22,8 +22,18 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # Written out rather than derived from github.repository, which keeps the
+  # owner's capitalisation - and a container registry refuses an uppercase
+  # repository name outright. Deriving it meant lower-casing in a shell step and
+  # reading that step's output back in `with:` blocks, which is two failures
+  # deep: the first publish emitted uppercase tags, and the second emitted none
+  # at all because the output came back empty.
+  #
+  # A literal cannot arrive empty. The cost is that renaming or forking this
+  # repository means editing this line, which is a visible, one-line cost rather
+  # than a silent midnight one.
   REGISTRY: ghcr.io
-  IMAGE: ${{ github.repository }}
+  IMAGE_NAME: ghcr.io/hoseacodes/storm-gate
 
 jobs:
   # An image is not published unless the suite that covers token signing and key
@@ -81,10 +91,6 @@ jobs:
       # github.repository is mixed case and GHCR paths are not. metadata-action
       # lower-cases this for us, but the digest push below names the repository
       # directly and so has to do it itself.
-      - name: Lower-case the image name
-        id: image
-        run: echo "name=$REGISTRY/$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -98,15 +104,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          # The lower-cased name, not github.repository.
-          #
-          # This said ${{ env.REGISTRY }}/${{ env.IMAGE }}, and github.repository
-          # keeps the owner's capitalisation - so metadata-action emitted tags
-          # like ghcr.io/HoseaCodes/Storm-Gate:main. Docker refuses an uppercase
-          # repository name outright ("repository name must be lowercase"), so
-          # the per-platform digests pushed fine to the lower-cased name and the
-          # step that tags them could not name the same image.
-          images: ${{ steps.image.outputs.name }}
+          images: ${{ env.IMAGE_NAME }}
 
       - id: build
         uses: docker/build-push-action@v6
@@ -114,7 +112,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           # Scoped per platform: one shared scope means each architecture keeps
           # evicting the other's layers and neither ever gets a cache hit.
           cache-from: type=gha,scope=${{ matrix.platform }}
@@ -157,22 +155,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lower-case the image name
-        id: image
-        run: echo "name=$REGISTRY/$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          # The lower-cased name, not github.repository.
-          #
-          # This said ${{ env.REGISTRY }}/${{ env.IMAGE }}, and github.repository
-          # keeps the owner's capitalisation - so metadata-action emitted tags
-          # like ghcr.io/HoseaCodes/Storm-Gate:main. Docker refuses an uppercase
-          # repository name outright ("repository name must be lowercase"), so
-          # the per-platform digests pushed fine to the lower-cased name and the
-          # step that tags them could not name the same image.
-          images: ${{ steps.image.outputs.name }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -182,11 +168,31 @@ jobs:
       - name: Create the manifest list
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create \
-            $(jq -cr '.target."docker-metadata-action".tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ steps.image.outputs.name }}@sha256:%s ' *)
+          set -euo pipefail
+
+          # Both inputs are checked before use. Unchecked, an empty tag list
+          # reached jq as null and failed with "Cannot iterate over null", and an
+          # empty digest directory would expand the glob to the literal `*` -
+          # two failures whose messages say nothing about what went wrong.
+          tags=$(jq -cr '.target."docker-metadata-action".tags // [] | map("-t " + .) | join(" ")' \
+            <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          if [ -z "$tags" ]; then
+            echo "::error::metadata-action produced no tags, so there is nothing to publish under." >&2
+            echo "Its output was:" >&2
+            echo "$DOCKER_METADATA_OUTPUT_JSON" >&2
+            exit 1
+          fi
+
+          digests=$(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
+          if [ "$digests" = '${{ env.IMAGE_NAME }}@sha256:* ' ]; then
+            echo "::error::No per-platform digests were downloaded; the build jobs published nothing." >&2
+            exit 1
+          fi
+
+          echo "Tagging $digests as: $tags"
+          docker buildx imagetools create $tags $digests
 
       # Cheap, and it is the only thing that proves both architectures actually
       # made it into the tag people will pull.
       - name: Inspect the published image
-        run: docker buildx imagetools inspect ${{ steps.image.outputs.name }}:${{ steps.meta.outputs.version }}
+        run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
