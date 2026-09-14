@@ -21,9 +21,9 @@ Express process for local development.
 
 > **Scope.** This is a working single-author service, not a framework or a reference
 > implementation. The token and key-management code is covered by 85 tests and is the
-> part worth reading; much of the surrounding surface — uploads, admin, user CRUD — has
+> part worth reading; much of the surrounding surface — admin, user CRUD — has
 > no automated coverage. [ARCHITECTURE.md](ARCHITECTURE.md) is candid about where the
-> seams are, including a dependency audit that currently reports 3 critical and 30 high
+> seams are, including a dependency audit that currently reports 2 critical and 12 high
 > advisories in the production tree.
 
 ## What's in here

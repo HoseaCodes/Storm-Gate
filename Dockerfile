@@ -4,18 +4,12 @@ FROM node:18-alpine
 # Set working directory within the container
 WORKDIR /app
 
-# Install build dependencies for native modules (like jpegtran-bin)
+# Build dependencies for bcrypt, the only remaining native module.
 RUN apk add --no-cache \
     gcc \
     g++ \
     make \
-    python3 \
-    autoconf \
-    automake \
-    libtool \
-    nasm \
-    libpng-dev \
-    libjpeg-turbo-dev
+    python3
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001

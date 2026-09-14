@@ -2,14 +2,11 @@ import dotenv from 'dotenv';
 import express from 'express';
 import logger from 'morgan';
 import cors from 'cors';
-import fileUpload from 'express-fileupload';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
-import uploadRouter from './routes/upload.js';
 import userRouter from './routes/user.js';
 import authRouter from './routes/auth.js';
 import connectDB from './config/db-lambda.js'; // Use Lambda-optimized DB connection
-import { imageOp } from './utils/imageOp.js';
 import rateLimit from 'express-rate-limit';
 import basicAuth from 'express-basic-auth';
 import swaggerUi from 'swagger-ui-express';
@@ -25,8 +22,6 @@ import serverless from 'serverless-http';
 // Load environment variables
 dotenv.config();
 
-// Initialize image operations
-imageOp();
 
 // Detect if running in Lambda environment
 const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -64,22 +59,6 @@ app.use(cors({
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Configure file upload for Lambda vs Local
-if (isLambda) {
-  // Lambda: Use /tmp directory with size limits
-  app.use(fileUpload({ 
-    useTempFiles: true,
-    tempFileDir: '/tmp/',
-    limits: { 
-      fileSize: 50 * 1024 * 1024 // 50MB limit for Lambda
-    },
-    abortOnLimit: true,
-    responseOnLimit: "File size limit exceeded (50MB max for Lambda)"
-  }));
-} else {
-  // Local: Use default configuration
-  app.use(fileUpload({ useTempFiles: true }));
-}
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -262,7 +241,6 @@ app.post('/verify-reset-token/:token', userController.verifyResetToken);
 
 // Protected endpoints (JWT required)
 app.get('/me', auth, userController.getMe);
-app.use('/api', verifyJWT, uploadRouter);
 app.use('/api/user', verifyJWT, userRouter);
 
 // Lambda-specific initialization

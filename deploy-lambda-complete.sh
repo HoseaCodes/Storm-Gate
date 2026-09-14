@@ -54,9 +54,6 @@ CLIENT_ID="${CLIENT_ID:-your-azure-client-id}"
 TENANT_ID="${TENANT_ID:-your-azure-tenant-id}"
 ACCESS_TOKEN_SECRET="${ACCESS_TOKEN_SECRET:-your-access-token-secret}"
 REFRESH_TOKEN_SECRET="${REFRESH_TOKEN_SECRET:-your-refresh-token-secret}"
-CLOUDINARY_CLOUD_NAME="${CLOUDINARY_CLOUD_NAME:-your-cloudinary-name}"
-CLOUDINARY_API_KEY="${CLOUDINARY_API_KEY:-your-cloudinary-key}"
-CLOUDINARY_API_SECRET="${CLOUDINARY_API_SECRET:-your-cloudinary-secret}"
 CLIENT_SECRET="${CLIENT_SECRET:-your-azure-client-secret}"
 JWT_SECRET="${JWT_SECRET:-your-jwt-secret}"
 API_IDENTIFIER="${API_IDENTIFIER:-}"
@@ -157,9 +154,6 @@ validate_env_vars() {
         missing_vars+=("REFRESH_TOKEN_SECRET")
     fi
     
-    if [[ "$CLOUDINARY_CLOUD_NAME" == "your-cloudinary-name" ]]; then
-        missing_vars+=("CLOUDINARY_CLOUD_NAME")
-    fi
 
     if [[ "$CLIENT_SECRET" == "your-azure-client-secret" || -z "$CLIENT_SECRET" ]]; then
         missing_vars+=("CLIENT_SECRET")
@@ -425,7 +419,7 @@ configure_environment() {
     # from this list is carried through untouched.
     export STORM_GATE_MANAGED_VARS="MONGODB_URL CLIENT_ID CLIENT_SECRET TENANT_ID
         API_IDENTIFIER ACCESS_TOKEN_SECRET REFRESH_TOKEN_SECRET JWT_SECRET
-        CORS_ORIGINS CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET
+        CORS_ORIGINS
         EMAIL_HOST EMAIL_PORT EMAIL_USER EMAIL_PASS ADMIN_EMAIL BASE_URL
         REDIRECT_URI EMAIL_INTEGRATOR_BASE_URL
         JWT_SIGNING_ALG JWT_PRIVATE_KEY JWT_PUBLIC_KEY JWT_PREVIOUS_PUBLIC_KEYS
@@ -748,9 +742,6 @@ show_help() {
     echo "  TENANT_ID               Azure AD Tenant ID"
     echo "  ACCESS_TOKEN_SECRET     JWT access token secret"
     echo "  REFRESH_TOKEN_SECRET    JWT refresh token secret"
-    echo "  CLOUDINARY_CLOUD_NAME   Cloudinary cloud name"
-    echo "  CLOUDINARY_API_KEY      Cloudinary API key"
-    echo "  CLOUDINARY_API_SECRET   Cloudinary API secret"
     echo ""
     echo "Example:"
     echo "  export MONGODB_URL='mongodb+srv://user:pass@cluster.mongodb.net/db'"

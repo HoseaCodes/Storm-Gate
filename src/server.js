@@ -2,17 +2,14 @@ import dotenv from 'dotenv';
 import express from 'express';
 import logger from 'morgan';
 import cors from 'cors';
-import fileUpload from 'express-fileupload';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
-import uploadRouter from './routes/upload.js';
 import userRouter from './routes/user.js';
 import extAuthRouter from './routes/ext-auth.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import wellKnownRouter from './routes/wellKnown.js';
 import connectDB from './config/db.js';
-import { imageOp } from './utils/imageOp.js';
 import rateLimit from 'express-rate-limit';
 import basicAuth from 'express-basic-auth';
 import swaggerUi from 'swagger-ui-express';
@@ -24,7 +21,6 @@ import isAdmin from './utils/authAdmin.js';
 import { verifyJWT } from './utils/auth.js';
 
 dotenv.config();
-imageOp();
 
 const app = express();
 app.use(logger('dev'));
@@ -46,7 +42,6 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(fileUpload({ useTempFiles: true }));
 
 // Swagger setup
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -87,7 +82,6 @@ app.post('/check-status', userController.checkUserStatus);
 // app.post('/verify-reset-token/:token', userController.verifyResetToken);
 // Protected me endpoint (JWT required) - using local auth
 app.get('/me', auth, userController.getMe);
-app.use('/api', verifyJWT, uploadRouter);
 // app.use('/api/auth', authRouter)
 app.use('/', authRouter)
 app.use('/api/auth/admin', auth, isAdmin, adminRouter);
