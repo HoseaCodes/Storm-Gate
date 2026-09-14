@@ -2,6 +2,7 @@ import express from 'express';
 import authController from '../controllers/ext-auth.js';
 import approvalController from '../controllers/approval.js';
 import enhancedVerifyJWT from '../utils/enhancedAuth.js';
+import requireAdmin from '../utils/requireAdmin.js';
 
 const router = express.Router();
 
@@ -248,7 +249,7 @@ router.get('/deny', approvalController.denyUser);
  *       500:
  *         description: Server error
  */
-router.get('/pending-users', enhancedVerifyJWT, approvalController.getPendingUsers);
+router.get('/pending-users', enhancedVerifyJWT, requireAdmin, approvalController.getPendingUsers);
 
 /**
  * @swagger
@@ -277,7 +278,7 @@ router.get('/pending-users', enhancedVerifyJWT, approvalController.getPendingUse
  *       500:
  *         description: Server error
  */
-router.post('/manual-approve', enhancedVerifyJWT, approvalController.manuallyApproveUser);
+router.post('/manual-approve', enhancedVerifyJWT, requireAdmin, approvalController.manuallyApproveUser);
 
 /**
  * @swagger
@@ -306,7 +307,7 @@ router.post('/manual-approve', enhancedVerifyJWT, approvalController.manuallyApp
  *       500:
  *         description: Server error
  */
-router.post('/manual-deny', enhancedVerifyJWT, approvalController.manuallyDenyUser);
+router.post('/manual-deny', enhancedVerifyJWT, requireAdmin, approvalController.manuallyDenyUser);
 
 
 export default router;

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.0-rc.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.0-rc.1...v1.9.0-rc.2) (2026-09-14)
+
+### 🚀 Features
+
+* **auth:** implement requireAdmin middleware for admin-only route access ([cfb7c53](https://github.com/HoseaCodes/Storm-Gate/commit/cfb7c53a23c9ba5f35f32e8a4769ca9cc81e443e))
+* **docker:** update Dockerfile for Node.js 20 and enhance security measures ([7c44ee5](https://github.com/HoseaCodes/Storm-Gate/commit/7c44ee5f32be3f165d529e04884547d4131eccab))
+
+### 🐛 Bug Fixes
+
+* **auth, user:** resolve password reset issues by correcting token handling and expiry field ([a6e8413](https://github.com/HoseaCodes/Storm-Gate/commit/a6e8413c7d0998efb442c4eae48deba8a0bed30c))
+* remove Cloudinary image upload feature and related dependencies ([931dc56](https://github.com/HoseaCodes/Storm-Gate/commit/931dc5652df337e7173e2f9e514579fcccc211c6))
+
+## [1.9.0-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.8.2-rc.1...v1.9.0-rc.1) (2026-09-13)
+
+### 🚀 Features
+
+* **service:** add initial service configuration for Storm-Gate ([2529c32](https://github.com/HoseaCodes/Storm-Gate/commit/2529c32a2c248f3bb9f2bd616df27908281535e3))
+
 ## [1.8.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.8.1...v1.8.2) (2026-09-12)
 
 ### 🐛 Bug Fixes

@@ -1,0 +1,79 @@
+name: Publish image
+
+# Storm-Gate is consumed as a container by OpsAtlas, which needs an identity
+# provider it can start from compose. Published from CI rather than from a
+# laptop so that what runs is built from a commit anyone can check out, by a
+# process anyone can read.
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ${{ github.repository }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The only write this workflow has, and it is the one it needs.
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # An image is not published unless the suite that covers token signing and
+      # key management passes. A broken authentication service that starts is
+      # worse than one that does not.
+      - run: npm ci
+      - run: npm test
+
+      # Fails the build on a known-vulnerable production dependency. `--omit=dev`
+      # because a test-only advisory is not something a running container ships,
+      # and failing on it would train everyone to pass `--force`.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=long
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          # arm64 as well as amd64: the people running this locally are on Apple
+          # silicon, and an amd64-only image would run there under emulation -
+          # slowly enough that somebody would eventually stop using it.
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
