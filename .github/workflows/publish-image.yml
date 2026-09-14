@@ -98,7 +98,15 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          # The lower-cased name, not github.repository.
+          #
+          # This said ${{ env.REGISTRY }}/${{ env.IMAGE }}, and github.repository
+          # keeps the owner's capitalisation - so metadata-action emitted tags
+          # like ghcr.io/HoseaCodes/Storm-Gate:main. Docker refuses an uppercase
+          # repository name outright ("repository name must be lowercase"), so
+          # the per-platform digests pushed fine to the lower-cased name and the
+          # step that tags them could not name the same image.
+          images: ${{ steps.image.outputs.name }}
 
       - id: build
         uses: docker/build-push-action@v6
@@ -156,7 +164,15 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          # The lower-cased name, not github.repository.
+          #
+          # This said ${{ env.REGISTRY }}/${{ env.IMAGE }}, and github.repository
+          # keeps the owner's capitalisation - so metadata-action emitted tags
+          # like ghcr.io/HoseaCodes/Storm-Gate:main. Docker refuses an uppercase
+          # repository name outright ("repository name must be lowercase"), so
+          # the per-platform digests pushed fine to the lower-cased name and the
+          # step that tags them could not name the same image.
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
