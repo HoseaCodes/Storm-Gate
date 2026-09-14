@@ -5,17 +5,13 @@ FROM public.ecr.aws/lambda/nodejs:18
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Install build dependencies for native modules (like jpegtran-bin)
-# Note: Lambda runtime already has many build tools, but we need some specific ones
+# bcrypt is the only remaining native module; it needs a C++ toolchain when no
+# prebuilt binary matches. The image-codec packages (nasm, libpng, libjpeg,
+# autotools) were for jpegtran/pngquant and went with the upload feature.
 RUN yum update -y && \
     yum install -y \
     gcc-c++ \
-    make \
-    autoconf \
-    automake \
-    libtool \
-    nasm \
-    libpng-devel \
-    libjpeg-turbo-devel && \
+    make && \
     yum clean all
 
 # Copy package files first for better Docker layer caching

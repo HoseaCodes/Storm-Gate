@@ -15,7 +15,6 @@ graph LR
   Consumer["Consumer service<br/>@storm-gate/express"] -->|"fetch JWKS (cached 1h)"| SG
   SG["Storm-Gate<br/>Express / Lambda"] --> Mongo[("MongoDB Atlas")]
   SG -->|OIDC| Azure["Azure Entra ID"]
-  SG --> Cloudinary["Cloudinary"]
 ```
 
 The important property is the arrow that **is not** there: a consumer service verifying
@@ -46,7 +45,6 @@ connection must be cached at module scope rather than opened per request.
 | `/` (login, register, refresh) | none | `src/routes/auth.js` |
 | `GET /me` | `auth` | Storm-Gate tokens |
 | `/api/auth/admin` | `auth` + `isAdmin` | |
-| `/api` (upload) | `verifyJWT` | |
 | `/api/user` | `verifyJWT` | |
 | `/api/auth/oidc` | `enhancedVerifyJWT` | Azure AD or Storm-Gate tokens |
 | `/api-docs` | none | Swagger UI |
@@ -199,9 +197,8 @@ can only run somewhere privileged.
 SDK tests run separately (`npm run test:packages`): `@storm-gate/client` intercepts HTTP
 with `msw` and `onUnhandledRequest: 'error'`, so an untested real request fails the suite.
 
-**What is not covered.** Controllers, models, uploads, admin routes, email, and the
-Cloudinary integration have no automated tests. `verifyJWT` — mounted on `/api` and
-`/api/user` — has none either. Coverage is concentrated on token and key handling because
+**What is not covered.** Controllers, models, admin routes, and email have no
+automated tests. `verifyJWT` — mounted on `/api/user` — has none either. Coverage is concentrated on token and key handling because
 that is where a bug is a security incident rather than a bug.
 
 ---
@@ -246,9 +243,10 @@ re-applies the same diffs and re-conflicts permanently.
 
 Ordered roughly by how much they would bother a reviewer.
 
-1. **Dependency advisories.** `npm audit --omit=dev` currently reports **53 production
-   advisories: 3 critical, 30 high** across ~1,470 dependencies. Much of it traces to the
-   `imagemin` chain, which is only used for upload processing. Unaddressed.
+1. **Dependency advisories.** `npm audit --omit=dev` currently reports **22 production
+   advisories: 2 critical, 12 high**. Much of what remains traces to the
+   remaining chain. Down from 53 (3 critical, 30 high) after the image-upload
+   feature and its `imagemin` dependencies were removed.
 2. **No automated deployment.** Deploys are run by an operator from a laptop
    (`make lambda-deploy`). There is no deploy workflow and no approval gate.
 3. **No immutable artifact.** `IMAGE_TAG` defaults to `latest`, so there is no specific
@@ -258,7 +256,7 @@ Ordered roughly by how much they would bother a reviewer.
    parameterizes the function name, repo, tag, and API stage, so provisioning a second
    environment needs no script changes.
 5. **Three overlapping verification middlewares** with duplicated JWKS helpers (see
-   above). One of the three, `verifyJWT`, is untested and guards upload and user routes.
+   above). One of the three, `verifyJWT`, is untested and guards the user routes.
 6. **No revocation path.** See *Not defended*.
 7. **No linting.** No ESLint or Prettier config exists; style is whatever the file already
    does.

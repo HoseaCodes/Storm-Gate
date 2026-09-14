@@ -1,6 +1,7 @@
 import User from "../models/user.js";
 import Logger from "../utils/logger-lambda.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { createAccessToken, createRefreshToken } from "../utils/auth.js";
 import BlogUser from "../models/blogUser.js";
@@ -282,7 +283,7 @@ async function requestPasswordReset(req, res) {
 
     // Set expire time (10 minutes)
     user.resetPasswordToken = resetPasswordToken;
-    user.resetPasswordExpire = Date.now() + 20 * 60 * 1000; // 20 minutes
+    user.resetPasswordExpires = Date.now() + 20 * 60 * 1000; // 20 minutes
 
     // Save hashed token to database
     await user.save();
@@ -319,30 +320,22 @@ async function verifyResetToken(req, res) {
       return res.status(400).json({ msg: "Reset token is required" });
     }
 
-    // Verify JWT token
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    } catch (err) {
+    // Reset tokens are random bytes, not JWTs, and the database stores their
+    // SHA-256 digest. Look the user up by that digest — the same way
+    // resetPassword does — so a stolen database still cannot be used to reset
+    // anyone's password.
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
       return res.status(400).json({ msg: "Invalid or expired reset token" });
-    }
-
-    // Find user and check if token is still valid
-    const user = await User.findById(decoded.id);
-    
-    if (!user || !user.resetPasswordToken || !user.resetPasswordExpires) {
-      return res.status(400).json({ msg: "Invalid or expired reset token" });
-    }
-
-    // Check if token has expired
-    if (Date.now() > user.resetPasswordExpires) {
-      return res.status(400).json({ msg: "Reset token has expired" });
-    }
-
-    // Verify the token matches
-    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
-    if (!isValid) {
-      return res.status(400).json({ msg: "Invalid reset token" });
     }
 
     res.json({ 
@@ -386,7 +379,7 @@ async function resetPassword(req, res) {
     // Find user with valid token and non-expired token
     const user = await User.findOne({
       resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() }
+      resetPasswordExpires: { $gt: Date.now() }
     });
 
     if (!user) {
