@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.4-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.3...v1.9.4-rc.1) (2026-09-14)
+
+### 🐛 Bug Fixes
+
+* **publish-image:** enhance tag extraction to handle multiple metadata formats ([02c8399](https://github.com/HoseaCodes/Storm-Gate/commit/02c8399fd7fc98367cf4a8e0967d2d71a94af8a8))
+
+## [1.9.3-rc.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.3-rc.1...v1.9.3-rc.2) (2026-09-14)
+
+### 🐛 Bug Fixes
+
+* **publish-image:** enhance tag extraction to handle multiple metadata formats ([02c8399](https://github.com/HoseaCodes/Storm-Gate/commit/02c8399fd7fc98367cf4a8e0967d2d71a94af8a8))
 ## [1.9.3](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.2...v1.9.3) (2026-09-14)
 
 ### 🐛 Bug Fixes

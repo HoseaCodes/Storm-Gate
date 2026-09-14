@@ -1,6 +1,6 @@
 {
   "name": "storm-gate",
-  "version": "1.9.3",
+  "version": "1.9.4-rc.1",
   "description": "",
   "main": "src/server.js",
   "type": "module",

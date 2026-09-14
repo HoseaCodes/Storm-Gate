@@ -170,11 +170,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Both inputs are checked before use. Unchecked, an empty tag list
-          # reached jq as null and failed with "Cannot iterate over null", and an
-          # empty digest directory would expand the glob to the literal `*` -
-          # two failures whose messages say nothing about what went wrong.
-          tags=$(jq -cr '.target."docker-metadata-action".tags // [] | map("-t " + .) | join(" ")' \
+          # Either shape metadata-action might emit.
+          #
+          # It writes DOCKER_METADATA_OUTPUT_JSON as {"tags":[...],"labels":{...}}.
+          # The widely copied snippet for this job reads
+          # `.target."docker-metadata-action".tags`, which is the *bake file*
+          # layout - a different output of the same action. Against the real
+          # output that path is null, so the tags were computed correctly,
+          # lower-cased and all, and then thrown away by the filter meant to read
+          # them. Accepting both costs one `//` and survives the action changing
+          # its mind.
+          tags=$(jq -cr '(.tags // .target."docker-metadata-action".tags // []) | map("-t " + .) | join(" ")' \
             <<< "$DOCKER_METADATA_OUTPUT_JSON")
           if [ -z "$tags" ]; then
             echo "::error::metadata-action produced no tags, so there is nothing to publish under." >&2
