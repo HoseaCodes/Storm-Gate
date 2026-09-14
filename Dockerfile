@@ -1,9 +1,16 @@
 # Storm-Gate, as a published image.
 #
-# Two stages: the first builds bcrypt, which is the only native module and has no
-# musl prebuilds, so it must be compiled. The second stage takes the resulting
-# node_modules and nothing else, which keeps gcc, make and python out of an image
-# that runs an authentication service on the public internet.
+# Two stages: the first installs the production dependencies against the
+# lockfile, the second takes the resulting node_modules and nothing else. That
+# keeps the lockfile and npm's own cache out of an image that runs an
+# authentication service on the public internet.
+#
+# No compiler in either stage. bcrypt is the only native module, and as of 6.0.0
+# it ships prebuildify binaries tagged by libc - prebuilds/linux-arm64/
+# bcrypt.musl.node among them - so node-gyp-build resolves a binary rather than
+# building one. The gcc/g++/make/python3 layer this file used to carry was there
+# for bcrypt 5, which used node-pre-gyp and published glibc builds only; the
+# 6.0.0 upgrade turned it into a toolchain installed on every build, for nothing.
 
 # ---- build -----------------------------------------------------------------
 # Node 20 to match .nvmrc and the README. This said node:18 until the image was
@@ -12,8 +19,6 @@
 FROM node:20-alpine AS build
 
 WORKDIR /app
-
-RUN apk add --no-cache gcc g++ make python3
 
 # The lockfile, not the ranges. `npm install` resolves afresh at build time, so
 # two builds of the same commit could ship different dependency trees - and the
