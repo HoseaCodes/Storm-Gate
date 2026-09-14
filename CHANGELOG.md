@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.9.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.0...v1.9.1) (2026-09-14)
+
+### 🐛 Bug Fixes
+
+* update Dockerfile comments for clarity and accuracy ([6d1ecd0](https://github.com/HoseaCodes/Storm-Gate/commit/6d1ecd03a21352bf371d7a7a9af37945dc2eebe8))
+
 ## [1.9.1-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.0...v1.9.1-rc.1) (2026-09-14)
 
 ### 🐛 Bug Fixes
