@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: storm-gate
   displayName: Storm-Gate
+  owner: hoseacodes
   repository: HoseaCodes/Storm-Gate
   description: >-
     Node.js authentication service. Issues and verifies JWT access and refresh
@@ -20,6 +21,9 @@ spec:
       url: https://3ynqb3302m.execute-api.us-east-1.amazonaws.com
   health:
     readiness: /health
+  observability:
+    serviceName: storm-gate
+    dashboard: https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards/dashboard/Storm-Gate
   operations:
     runbook: README-lambda.md
     contact: info@ambitiousconcept.com
