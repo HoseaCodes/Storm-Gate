@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.0-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.4-rc.1...v1.10.0-rc.1) (2026-09-17)
+
+### 🚀 Features
+
+* **dashboard:** add CloudWatch dashboard management targets and script ([318848f](https://github.com/HoseaCodes/Storm-Gate/commit/318848f78d8d12db06c9c043bda676dc16e99975))
+
 ## [1.9.4-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.3...v1.9.4-rc.1) (2026-09-14)
 
 ### 🐛 Bug Fixes
