@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.10.0...v1.11.0-rc.1) (2026-09-17)
+
+### 🚀 Features
+
+* implement service refresh token management ([bfff342](https://github.com/HoseaCodes/Storm-Gate/commit/bfff34256db5d11a68ad2331cd1a951b336c9e52))
+
 ## [1.10.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.9.4...v1.10.0) (2026-09-17)
 
 ### 🚀 Features
