@@ -66,6 +66,98 @@ Storm Gate is successfully deployed and running on **AWS Lambda** (Serverless) u
 ./deploy-lambda-complete.sh --skip-api-gateway
 ```
 
+### Environments
+
+| | Production | Staging |
+| --- | --- | --- |
+| Deployed by | `./deploy-lambda-complete.sh` from a laptop | `.github/workflows/deploy-staging.yml`, on push to `staging` |
+| Lambda function | `storm-gate` | `storm-gate-staging` |
+| Execution role | `lambda-execution-role` | `storm-gate-staging-lambda-role` |
+| ECR repository | `storm-gate-lambda` | `storm-gate-lambda-staging` |
+| API name / stage | `storm-gate-api` / `prod` | `storm-gate-api-staging` / `staging` |
+| Image tag | `latest` | `staging-<12-char sha>` |
+| Log retention | none — forever | 14 days |
+| AWS credentials | long-lived keys on the laptop | GitHub OIDC, no stored key |
+
+`NODE_ENV` is `production` in both. It gates secure cookies and CORS
+enforcement ([`src/lambda-app.js`](src/lambda-app.js),
+[`src/controllers/ext-auth.js`](src/controllers/ext-auth.js)), and a staging
+environment that relaxes those is not testing the thing that ships.
+
+### Staging: one-time setup
+
+```bash
+# Creates the GitHub OIDC provider, a deploy role scoped to the staging
+# resources, the staging execution role, ECR repository (with expiry),
+# log group and an empty HTTP API. Idempotent -- re-run to amend.
+./scripts/setup-staging-cicd.sh --dry-run   # inspect first
+./scripts/setup-staging-cicd.sh
+```
+
+Needs IAM-capable credentials, and is the only step that does. It prints the
+deploy role ARN and the list of GitHub secrets and variables to set.
+
+Then, in **Settings → Environments → `staging`**:
+
+- **Deployment branches: Selected branches → `staging`.** Without it the
+  environment's secrets are reachable from any branch.
+- Secrets: `AWS_DEPLOY_ROLE_ARN`, `MONGODB_URL`, `CLIENT_SECRET`,
+  `ACCESS_TOKEN_SECRET`, `REFRESH_TOKEN_SECRET`, `JWT_SECRET`,
+  `JWT_PRIVATE_KEY`, and optionally `EMAIL_USER` / `EMAIL_PASS`.
+- Variables: `CLIENT_ID`, `TENANT_ID`, `REDIRECT_URI`, `CORS_ORIGINS`,
+  `OIDC_ALLOWED_RETURN_ORIGINS`, `JWT_PUBLIC_KEY`, `JWT_ISSUER`, and
+  optionally `PROD_JWKS_URL`, `API_IDENTIFIER`, `JWT_SIGNING_ALG`,
+  `ADMIN_EMAIL`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_INTEGRATOR_BASE_URL`.
+
+Anything left unset is *held*, not cleared: the deploy reads the function's
+live environment and overlays only the values it has, so a missing variable
+keeps whatever is already there rather than deleting it. A missing **secret**,
+though, fails the deploy — the workflow sets `STRICT_ENV=1`.
+
+> **Staging must not share production's signing key or token secrets.**
+> Production publishes its public key at `/.well-known/jwks.json` and every
+> consumer of `@storm-gate/express` verifies against it. Share the private key
+> and a token minted by staging — against a database of seeded test users —
+> verifies cleanly in production. Generate a separate keypair with
+> `node scripts/generate-jwt-keys.mjs`. Setting the `PROD_JWKS_URL` variable
+> makes the workflow compare the two JWKS documents on every deploy and fail
+> if a key is shared.
+
+### Staging: deploying
+
+Push to `staging`. The workflow runs the service test suite in a job with no
+access to AWS or to the environment's secrets, then deploys, then smoke-tests
+`/health` and `/.well-known/jwks.json` through the real API Gateway URL. The
+run summary carries the URL, the image tag and the rollback command.
+
+`workflow_dispatch` redeploys an unchanged tree — for picking up a rotated
+secret, where nothing in the repository changed but the function's environment
+must.
+
+Rollback is a redeploy of an earlier tag; ECR keeps the last 10:
+
+```bash
+aws ecr list-images --repository-name storm-gate-lambda-staging --region us-east-1
+
+aws lambda update-function-code --function-name storm-gate-staging \
+  --image-uri <account>.dkr.ecr.us-east-1.amazonaws.com/storm-gate-lambda-staging:staging-<sha> \
+  --region us-east-1
+```
+
+To deploy staging from a laptop instead — bypassing CI, for debugging:
+
+```bash
+ENV_FILE=.env.staging ./deploy-lambda-complete.sh \
+  --function-name storm-gate-staging \
+  --role-name storm-gate-staging-lambda-role \
+  --repository storm-gate-lambda-staging \
+  --api-name storm-gate-api-staging \
+  --api-stage staging \
+  --tag "staging-manual-$(date +%Y%m%d%H%M)"
+```
+
+`.gitignore` covers `.env*`, so `.env.staging` will not be committed.
+
 ### Common Deployment Issues & Solutions
 
 During deployment, we encountered and resolved several critical issues:

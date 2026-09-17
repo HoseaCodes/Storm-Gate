@@ -1,0 +1,303 @@
+name: Deploy staging
+
+# Deploys the service to the staging Lambda on every push to `staging`.
+#
+# Production is still deployed by hand from a laptop. That asymmetry is
+# deliberate for now: staging is the environment where an automated deploy
+# being wrong is cheap, and it is worth proving the path here before pointing
+# it at prod. When prod does move to CI, this file becomes the template -- the
+# only differences should be the `environment:` name and the four resource
+# names in `env:` below.
+#
+# Credentials come from GitHub's OIDC provider, exchanged for a short-lived
+# session on a role scoped to the staging resources only. There is no AWS
+# access key in this repository's secrets, and the deploy role cannot see the
+# production function, its ECR repository or its API. Run
+# scripts/setup-staging-cicd.sh once to create all of that.
+on:
+  push:
+    branches: [staging]
+    # An approximation of "could this change what runs". Deliberately generous:
+    # a deploy skipped because the filter was too tight leaves staging quietly
+    # behind the branch, which is worse than a redundant three-minute deploy.
+    paths:
+      - 'src/**'
+      - 'lambda-handler.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Dockerfile.lambda'
+      - 'deploy-lambda-complete.sh'
+      - '.github/workflows/deploy-staging.yml'
+  # For redeploying an unchanged tree -- after rotating a secret, say, where
+  # nothing in the repository changed but the function's environment must.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One deploy at a time, and never cancelled. Two concurrent runs would race
+  # on update-function-code and update-function-configuration, and the loser
+  # can leave the function holding one commit's image with another commit's
+  # environment. Not per-ref: this workflow only ever runs on `staging`, so a
+  # per-ref group would be a group of one and would not actually serialise.
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  LAMBDA_FUNCTION_NAME: storm-gate-staging
+  LAMBDA_ROLE_NAME: storm-gate-staging-lambda-role
+  ECR_REPOSITORY_NAME: storm-gate-lambda-staging
+  API_GATEWAY_NAME: storm-gate-api-staging
+  API_STAGE_NAME: staging
+
+jobs:
+  # The gate, in a job of its own with no access to the staging environment and
+  # therefore no access to its secrets or to AWS. A test run that cannot reach
+  # the credentials it guards is a test run that cannot leak them.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Token signing, JWT verification, key discovery. The suite provisions
+      # its own ephemeral keys, so it needs none of the secrets below.
+      - name: Test service
+        run: npm test
+
+      # Not gated on `npm audit`, unlike publish-image.yml. The production
+      # dependency tree currently reports critical and high advisories (see
+      # ARCHITECTURE.md), so an audit gate here would block every staging
+      # deploy from today onward -- and the first thing a permanently red
+      # required gate teaches everyone is to pass --force. Audit runs as a
+      # report instead, and publish-image.yml keeps the real gate.
+      - name: Audit production dependencies (report only)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # Required, and not merely for the protection rules. The AWS trust policy
+    # matches on `repo:HoseaCodes/Storm-Gate:environment:staging`, which is the
+    # subject GitHub mints only for a job that declares an environment. Remove
+    # this line and the credential exchange fails closed rather than falling
+    # back to something broader.
+    environment:
+      name: staging
+      url: ${{ steps.endpoint.outputs.url }}
+
+    permissions:
+      contents: read
+      # The OIDC token. This is the only elevated permission in the workflow.
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # The deploy script shells out to `node` to merge the function's
+      # environment, and reuses node_modules rather than installing again.
+      - run: npm ci
+
+      - name: Assume the staging deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-storm-gate-staging-${{ github.run_id }}
+
+      # Immutable and traceable: the tag names the commit that produced it, so
+      # a rollback is a redeploy of a known tag rather than an archaeology
+      # exercise. `latest` would make every past build unreachable, and the
+      # ECR lifecycle policy keeps the last 10 of these as rollback targets.
+      - name: Derive the image tag
+        id: tag
+        run: echo "tag=staging-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+
+          # Fail rather than deploy placeholders if a secret below is missing.
+          STRICT_ENV: '1'
+          # npm ci already ran; the image installs its own dependencies.
+          SKIP_NPM_INSTALL: '1'
+
+          # Secrets. Every one of these must be staging-specific. The token
+          # secrets and the signing key especially: prod publishes its public
+          # key at /.well-known/jwks.json and every consumer of
+          # @storm-gate/express verifies against it, so a shared private key
+          # means a token minted by staging is accepted by production.
+          MONGODB_URL: ${{ secrets.MONGODB_URL }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
+          REFRESH_TOKEN_SECRET: ${{ secrets.REFRESH_TOKEN_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+
+          # Not secrets: identifiers, origins and the public half of the
+          # keypair. Kept as environment variables so they are readable in the
+          # GitHub UI and diffable when one of them turns out to be wrong --
+          # a masked CORS_ORIGINS is a bad afternoon.
+          CLIENT_ID: ${{ vars.CLIENT_ID }}
+          TENANT_ID: ${{ vars.TENANT_ID }}
+          API_IDENTIFIER: ${{ vars.API_IDENTIFIER }}
+          REDIRECT_URI: ${{ vars.REDIRECT_URI }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+          OIDC_ALLOWED_RETURN_ORIGINS: ${{ vars.OIDC_ALLOWED_RETURN_ORIGINS }}
+          JWT_PUBLIC_KEY: ${{ vars.JWT_PUBLIC_KEY }}
+          JWT_PREVIOUS_PUBLIC_KEYS: ${{ vars.JWT_PREVIOUS_PUBLIC_KEYS }}
+          JWT_ISSUER: ${{ vars.JWT_ISSUER }}
+          JWT_SIGNING_ALG: ${{ vars.JWT_SIGNING_ALG || 'RS256' }}
+          ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
+          EMAIL_HOST: ${{ vars.EMAIL_HOST }}
+          EMAIL_PORT: ${{ vars.EMAIL_PORT }}
+          EMAIL_INTEGRATOR_BASE_URL: ${{ vars.EMAIL_INTEGRATOR_BASE_URL }}
+        run: |
+          # --skip-test: the script's own check is `lambda invoke` with a
+          # synthetic event, which does not exercise API Gateway at all. The
+          # smoke test below goes through the real URL instead.
+          ./deploy-lambda-complete.sh \
+            --region "$AWS_REGION" \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --role-name "$LAMBDA_ROLE_NAME" \
+            --repository "$ECR_REPOSITORY_NAME" \
+            --api-name "$API_GATEWAY_NAME" \
+            --api-stage "$API_STAGE_NAME" \
+            --tag "$IMAGE_TAG" \
+            --skip-test
+
+      - name: Resolve the staging URL
+        id: endpoint
+        run: |
+          set -euo pipefail
+          api_id=$(aws apigatewayv2 get-apis --region "$AWS_REGION" \
+            --query "Items[?Name=='${API_GATEWAY_NAME}'].ApiId" --output text)
+          if [ -z "$api_id" ] || [ "$api_id" = "None" ]; then
+            echo "::error::No API Gateway named ${API_GATEWAY_NAME} after a successful deploy." >&2
+            exit 1
+          fi
+          url="https://${api_id}.execute-api.${AWS_REGION}.amazonaws.com/${API_STAGE_NAME}"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+          echo "Staging URL: ${url}"
+
+      # A deploy that reports success while the function cold-starts into a
+      # crash loop is worse than a failed one, because nobody looks again.
+      - name: Smoke test
+        env:
+          BASE: ${{ steps.endpoint.outputs.url }}
+        run: |
+          set -uo pipefail
+
+          # First request pays the container cold start, which for a ~340 MB
+          # image is several seconds. Retry rather than pick a long sleep.
+          probe() {
+            local path="$1" attempt=1
+            while [ $attempt -le 10 ]; do
+              code=$(curl -sS -o "$RUNNER_TEMP/body.json" -w '%{http_code}' \
+                --max-time 35 "${BASE}${path}" || echo 000)
+              if [ "$code" = "200" ]; then
+                echo "  ${path} -> 200"
+                return 0
+              fi
+              echo "  ${path} -> ${code} (attempt ${attempt}/10)"
+              sleep 6
+              attempt=$((attempt + 1))
+            done
+            echo "::error::${path} never returned 200. Last body:" >&2
+            head -c 2000 "$RUNNER_TEMP/body.json" >&2 || true
+            return 1
+          }
+
+          echo "Health:"
+          probe /health || exit 1
+
+          # The endpoint every consumer of @storm-gate/express depends on. If
+          # this is broken, tokens issued by staging cannot be verified by
+          # anything -- and the service will still answer /health happily.
+          echo "Key discovery:"
+          probe /.well-known/jwks.json || exit 1
+
+          if ! jq -e '.keys | length > 0' "$RUNNER_TEMP/body.json" >/dev/null; then
+            echo "::error::JWKS is served but contains no keys; JWT_PUBLIC_KEY is probably unset." >&2
+            exit 1
+          fi
+          echo "  JWKS has $(jq '.keys | length' "$RUNNER_TEMP/body.json") key(s)"
+          cp "$RUNNER_TEMP/body.json" "$RUNNER_TEMP/staging-jwks.json"
+
+      # The failure this is here to catch is silent, survives every test, and
+      # is only visible by comparing two environments: if staging was given a
+      # copy of production's signing key, then a token minted by staging --
+      # against a database full of seeded test users and relaxed passwords --
+      # verifies in production, because prod publishes that same key and every
+      # consumer honours it. Set the PROD_JWKS_URL variable to enable.
+      - name: Check staging is not signing with production's key
+        if: vars.PROD_JWKS_URL != ''
+        env:
+          PROD_JWKS_URL: ${{ vars.PROD_JWKS_URL }}
+        run: |
+          set -uo pipefail
+
+          if ! curl -sS --max-time 20 -o "$RUNNER_TEMP/prod-jwks.json" "$PROD_JWKS_URL"; then
+            echo "::warning title=Key overlap not checked::Could not reach ${PROD_JWKS_URL}. Staging is deployed; verify by hand that its signing key differs from production's."
+            exit 0
+          fi
+          if ! jq -e '.keys' "$RUNNER_TEMP/prod-jwks.json" >/dev/null 2>&1; then
+            echo "::warning title=Key overlap not checked::${PROD_JWKS_URL} did not return a JWKS document."
+            exit 0
+          fi
+
+          # Compare the moduli, not the key ids. `kid` is a label and can be
+          # set to anything; `n` is the key.
+          overlap=$(jq -n --slurpfile a "$RUNNER_TEMP/staging-jwks.json" \
+                          --slurpfile b "$RUNNER_TEMP/prod-jwks.json" \
+            '[$a[0].keys[].n] - ([$a[0].keys[].n] - [$b[0].keys[].n]) | length')
+
+          if [ "$overlap" != "0" ]; then
+            echo "::error title=Staging shares production's signing key::Staging publishes ${overlap} key(s) that production also publishes. A token minted by staging will verify in production. Generate a staging keypair with scripts/generate-jwt-keys.mjs and replace the JWT_PRIVATE_KEY secret and JWT_PUBLIC_KEY variable on the staging environment." >&2
+            exit 1
+          fi
+          echo "No key overlap with production."
+
+      - name: Summarise
+        if: always()
+        env:
+          URL: ${{ steps.endpoint.outputs.url }}
+        run: |
+          {
+            echo "### Staging deploy"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`${GITHUB_SHA::12}\` |"
+            echo "| Image tag | \`${{ steps.tag.outputs.tag }}\` |"
+            echo "| Function | \`${LAMBDA_FUNCTION_NAME}\` |"
+            echo "| URL | ${URL:-_not resolved_} |"
+            echo ""
+            echo "Rollback: re-run this workflow from an earlier commit, or point the"
+            echo "function at a previous tag:"
+            echo ""
+            echo '```sh'
+            echo "aws lambda update-function-code --function-name ${LAMBDA_FUNCTION_NAME} \\"
+            echo "  --image-uri <account>.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}:staging-<sha> \\"
+            echo "  --region ${AWS_REGION}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

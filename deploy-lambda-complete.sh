@@ -15,10 +15,22 @@ LAMBDA_ROLE_NAME="${LAMBDA_ROLE_NAME:-lambda-execution-role}"
 API_GATEWAY_NAME="${API_GATEWAY_NAME:-storm-gate-api}"
 API_STAGE_NAME="${API_STAGE_NAME:-prod}"
 
+# Which dotenv file to read. Parameterised so a second environment is a
+# different file rather than a different checkout: `ENV_FILE=.env.staging`.
+# In CI there is usually no file at all -- the values arrive already exported,
+# and load_env_file just says so and moves on.
+ENV_FILE="${ENV_FILE:-.env}"
+
+# Turn the "continuing with placeholder values" warning below into a hard
+# failure. Interactively that warning is a useful nudge; in CI it is a way to
+# deploy a function pointed at mongodb+srv://username:password@cluster because
+# a repository secret was misspelled, and to report success while doing it.
+STRICT_ENV="${STRICT_ENV:-0}"
+
 # Load environment variables from .env file if it exists
 load_env_file() {
-    if [ -f ".env" ]; then
-        print_status "Loading environment variables from .env file..."
+    if [ -f "$ENV_FILE" ]; then
+        print_status "Loading environment variables from $ENV_FILE..."
         # Parsed line by line rather than sourced. `source` evaluates each line
         # as shell, so an unquoted value containing & ; | or a backtick is read
         # as syntax: a Mongo connection string ending `?retryWrites=true&w=majority`
@@ -41,10 +53,10 @@ load_env_file() {
                 \'*\') value="${value#\'}"; value="${value%\'}" ;;
             esac
             export "$name=$value"
-        done < .env
-        print_success "Environment variables loaded from .env"
+        done < "$ENV_FILE"
+        print_success "Environment variables loaded from $ENV_FILE"
     else
-        print_warning ".env file not found, using default/environment values"
+        print_warning "$ENV_FILE not found, using default/environment values"
     fi
 }
 
@@ -180,6 +192,11 @@ validate_env_vars() {
         for var in "${missing_vars[@]}"; do
             echo "  - $var"
         done
+        if [ "$STRICT_ENV" = "1" ]; then
+            print_error "STRICT_ENV=1 and the variables above are unset or still placeholders."
+            print_error "Refusing to deploy. In CI this means a repository secret is missing or misnamed."
+            exit 1
+        fi
         print_warning "You can set them as environment variables or edit this script directly"
         print_warning "Continuing with placeholder values - Lambda function may not work until configured"
     else
@@ -196,7 +213,15 @@ install_dependencies() {
         exit 1
     fi
     
-    npm install
+    # The image builds its own dependencies with `npm ci` inside
+    # Dockerfile.lambda, and nothing this script runs on the host needs the
+    # tree. CI has already installed and tested, and a bare `npm install`
+    # there would rewrite package-lock.json under the commit being deployed.
+    if [ "${SKIP_NPM_INSTALL:-0}" = "1" ]; then
+        print_status "SKIP_NPM_INSTALL=1 - using the existing node_modules"
+    else
+        npm install
+    fi
     print_success "Dependencies installed"
 }
 
@@ -539,7 +564,14 @@ create_api_gateway() {
 add_lambda_permission() {
     print_status "Adding Lambda permission for API Gateway..."
     
-    local statement_id="api-gateway-invoke-$(date +%s)"
+    # Derived from the API id, not from $(date +%s). A timestamped id makes
+    # every deploy append a *new* statement to the function's resource policy
+    # instead of re-asserting the same one, and that policy is capped at 20 KB
+    # -- so a deploy-per-merge pipeline eventually fails every deploy with
+    # PolicyLengthExceededException and needs the policy pruned by hand. This
+    # id is stable, so the second call is a conflict that the fallback below
+    # correctly treats as "already granted".
+    local statement_id="apigw-invoke-${API_ID}"
     
     # Add permission (ignore error if already exists)
     aws lambda add-permission \
@@ -735,6 +767,10 @@ show_help() {
     echo "  --tag TAG               Image tag (default: latest)"
     echo "  --account-id ID         AWS Account ID (auto-detected if not provided)"
     echo "  --role-name NAME        IAM role name (default: lambda-execution-role)"
+    echo "  --api-name NAME         API Gateway name (default: storm-gate-api)"
+    echo "  --api-stage NAME        API Gateway stage (default: prod)"
+    echo "  --env-file PATH         Dotenv file to read (default: .env)"
+    echo "  --strict-env            Fail instead of warning on missing/placeholder vars"
     echo "  --skip-test             Skip function testing"
     echo "  --skip-api-gateway      Skip API Gateway setup"
     echo "  --api-gateway-only      Only set up API Gateway (requires existing Lambda function)"
@@ -789,6 +825,22 @@ main() {
             --role-name)
                 LAMBDA_ROLE_NAME="$2"
                 shift 2
+                ;;
+            --api-name)
+                API_GATEWAY_NAME="$2"
+                shift 2
+                ;;
+            --api-stage)
+                API_STAGE_NAME="$2"
+                shift 2
+                ;;
+            --env-file)
+                ENV_FILE="$2"
+                shift 2
+                ;;
+            --strict-env)
+                STRICT_ENV=1
+                shift
                 ;;
             --skip-test)
                 SKIP_TEST=true
