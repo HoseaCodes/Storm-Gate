@@ -50,7 +50,18 @@ env:
   LAMBDA_ROLE_NAME: storm-gate-staging-lambda-role
   ECR_REPOSITORY_NAME: storm-gate-lambda-staging
   API_GATEWAY_NAME: storm-gate-api-staging
-  API_STAGE_NAME: staging
+  # `$default`, not `staging`. An HTTP API does NOT strip the stage name from
+  # the request path for a named stage: a `staging` stage serves
+  # /staging/health and Express, which only knows /health, returns its own 404.
+  # The `$default` stage serves at the domain root, so rawPath is /health.
+  #
+  # This is why production works. Production has BOTH stages -- `$default` from
+  # API Gateway quick-create and a `prod` stage from this repo's deploy script
+  # -- and everything real goes through `$default`. Its /prod/* stage 404s
+  # exactly like this, and nothing has ever pointed at it.
+  #
+  # Quoted so YAML keeps it literal; bash does not re-expand a variable's value.
+  API_STAGE_NAME: '$default'
 
 jobs:
   # The gate, in a job of its own with no access to the staging environment and
@@ -195,7 +206,13 @@ jobs:
             echo "::error::No API Gateway named ${API_GATEWAY_NAME} after a successful deploy." >&2
             exit 1
           fi
-          url="https://${api_id}.execute-api.${AWS_REGION}.amazonaws.com/${API_STAGE_NAME}"
+          # The $default stage answers at the root; a named stage would be a
+          # path segment. Appending '$default' literally would 404.
+          if [ "$API_STAGE_NAME" = '$default' ]; then
+            url="https://${api_id}.execute-api.${AWS_REGION}.amazonaws.com"
+          else
+            url="https://${api_id}.execute-api.${AWS_REGION}.amazonaws.com/${API_STAGE_NAME}"
+          fi
           echo "url=${url}" >> "$GITHUB_OUTPUT"
           echo "Staging URL: ${url}"
 

@@ -556,8 +556,8 @@ echo ""
 if [ "$DRY_RUN" = "1" ]; then
     echo "Staging URL: not known yet — the API does not exist until a real run."
 else
-    echo "Staging URL (live after the first deploy):"
-    echo "  https://${API_ID}.execute-api.${AWS_REGION}.amazonaws.com/staging"
+    echo "Staging URL (live after the first deploy, on the \$default stage):"
+    echo "  https://${API_ID}.execute-api.${AWS_REGION}.amazonaws.com"
 fi
 echo ""
 echo "Now, on GitHub — Settings > Environments > New environment > 'staging':"

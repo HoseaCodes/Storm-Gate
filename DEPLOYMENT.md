@@ -74,7 +74,7 @@ Storm Gate is successfully deployed and running on **AWS Lambda** (Serverless) u
 | Lambda function | `storm-gate` | `storm-gate-staging` |
 | Execution role | `lambda-execution-role` | `storm-gate-staging-lambda-role` |
 | ECR repository | `storm-gate-lambda` | `storm-gate-lambda-staging` |
-| API name / stage | `storm-gate-api` / `prod` | `storm-gate-api-staging` / `staging` |
+| API name / stage | `storm-gate-api` / `$default` | `storm-gate-api-staging` / `$default` |
 | Image tag | `latest` | `staging-<12-char sha>` |
 | Log retention | none — forever | 14 days |
 | AWS credentials | long-lived keys on the laptop | GitHub OIDC, no stored key |
@@ -157,6 +157,13 @@ ENV_FILE=.env.staging ./deploy-lambda-complete.sh \
 ```
 
 `.gitignore` covers `.env*`, so `.env.staging` will not be committed.
+
+> **Deploy to the `$default` stage, not a named one.** An HTTP API does not
+> strip the stage name from the request path, so a `staging` stage serves
+> `/staging/health` and Express — which only knows `/health` — returns its own
+> 404. `$default` answers at the domain root. Production works for this reason:
+> it has a `$default` stage from API Gateway quick-create, plus a dead `prod`
+> stage created by this script that 404s on every path.
 
 ### Common Deployment Issues & Solutions
 
