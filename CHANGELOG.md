@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.1...v1.11.0-rc.2) (2026-09-17)
+
+### 🐛 Bug Fixes
+
+* Add ECR repository policy for Lambda image retrieval ([55f6992](https://github.com/HoseaCodes/Storm-Gate/commit/55f69922a075de163d3633ff2ebe6e5a97b411ce))
+
 ## [1.11.0-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.10.0...v1.11.0-rc.1) (2026-09-17)
 
 ### 🚀 Features
