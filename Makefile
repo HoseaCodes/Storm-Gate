@@ -95,6 +95,27 @@ lambda-logs: ## View recent Lambda logs
 lambda-logs-follow: ## Follow Lambda logs in real-time
 	aws logs tail /aws/lambda/storm-gate --region us-east-1 --follow --format short
 
+.PHONY: dashboard
+dashboard: ## Create/update the free CloudWatch dashboard
+	./scripts/create-dashboard.sh
+
+.PHONY: dashboard-preview
+dashboard-preview: ## Print the dashboard JSON without creating it
+	./scripts/create-dashboard.sh --dry-run
+
+.PHONY: dashboard-cost
+dashboard-cost: ## Explain what the dashboard does and doesn't cost
+	./scripts/create-dashboard.sh --cost
+
+.PHONY: dashboard-delete
+dashboard-delete: ## Delete the CloudWatch dashboard
+	./scripts/create-dashboard.sh --delete
+
+.PHONY: logs-retention
+logs-retention: ## Set 30-day retention on the Lambda log group (logs never expire by default)
+	aws logs put-retention-policy --log-group-name /aws/lambda/storm-gate --retention-in-days 30 --region us-east-1
+	@echo "Retention set to 30 days"
+
 .PHONY: lambda-test-health
 lambda-test-health: ## Test Lambda health endpoint directly
 	aws lambda invoke --function-name storm-gate --cli-binary-format raw-in-base64-out --payload '{"httpMethod":"GET","path":"/health"}' /tmp/test-response.json && cat /tmp/test-response.json | jq . && rm -f /tmp/test-response.json
