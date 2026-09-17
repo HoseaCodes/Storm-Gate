@@ -325,6 +325,53 @@ run ecr put-lifecycle-policy \
     --lifecycle-policy-text "file://$TMP/lifecycle.json" >/dev/null
 report_change "apply the ECR lifecycle policy (untagged expire after 1 day; last $KEEP_IMAGES staging builds kept)"
 
+# A container-image function is pulled by the LAMBDA SERVICE PRINCIPAL, not by
+# the function's execution role, so the repository needs a resource-based grant
+# as well. Without it, CreateFunction fails with:
+#
+#   AccessDeniedException: Lambda does not have permission to access the ECR
+#   image. Check the ECR permissions.
+#
+# which reads like a caller-credentials problem and is not one. The ECR pull
+# policy on the execution role above does not substitute for this.
+#
+# Easy to miss because the AWS Console adds this policy silently when you
+# create a container function through it -- production's repository has it for
+# that reason, and deploy-lambda-complete.sh has never created it. Nothing
+# surfaced the gap until a repository was built from scratch.
+#
+# Applied every run, like the lifecycle policy, so it is repaired if removed.
+cat > "$TMP/ecr-repo-policy.json" <<JSON
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LambdaECRImageRetrievalPolicy",
+      "Effect": "Allow",
+      "Principal": { "Service": "lambda.amazonaws.com" },
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Condition": {
+        "StringLike": {
+          "aws:sourceArn": "arn:aws:lambda:${AWS_REGION}:${ACCOUNT_ID}:function:${LAMBDA_FUNCTION_NAME}"
+        }
+      }
+    }
+  ]
+}
+JSON
+
+# sourceArn is pinned to the one staging function. Production's equivalent
+# policy allows function:* -- any function in the account can pull from it.
+print_status "Granting the Lambda service pull access to the repository..."
+run ecr set-repository-policy \
+    --repository-name "$ECR_REPOSITORY_NAME" \
+    --region "$AWS_REGION" \
+    --policy-text "file://$TMP/ecr-repo-policy.json" >/dev/null
+report_change "grant lambda.amazonaws.com pull access, scoped to $LAMBDA_FUNCTION_NAME"
+
 # ---------------------------------------------------------------------------
 # 5. The log group, created early so retention is set before the first write
 # ---------------------------------------------------------------------------
