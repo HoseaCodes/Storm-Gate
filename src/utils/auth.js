@@ -52,6 +52,32 @@ const auth = (req, res, next) => {
 					.status(400)
 					.json({ msg: "Invalid Authentication - invalid token"});
 
+			/*
+			 * A delegated token is not a user session.
+			 *
+			 * `act` names a service that a user permitted to act on their behalf
+			 * *somewhere else* -- the audience in `aud` says where. It proves a
+			 * grant exists; it does not prove the user is making this request.
+			 * Accepting it here hands the service the user's own routes, which is
+			 * strictly more than they ever consented to.
+			 *
+			 * This is easy to miss because such a token also carries `id`, emitted
+			 * for consumers that have not migrated to `sub`. Everything downstream
+			 * that reads `id` therefore resolves the right user and cannot tell the
+			 * difference. Only this claim can.
+			 *
+			 * `act` is set in exactly one place -- issueTokens() in the OAuth
+			 * controller -- and never on a login, guest or external-auth token, so
+			 * this rejects delegated tokens and nothing else. The check is on `act`
+			 * rather than on `aud` deliberately: a self-audience added to user
+			 * tokens later would silently break every login if `aud` were the test.
+			 */
+			if (user && user.act) {
+				return res
+					.status(401)
+					.json({ msg: "Invalid Authentication - delegated token" });
+			}
+
 			req.user = user;
 			next();
 		});
