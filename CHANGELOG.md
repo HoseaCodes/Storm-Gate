@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.4](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.3...v1.11.0-rc.4) (2026-09-17)
+
+### 🐛 Bug Fixes
+
+* **auth:** reject delegated tokens in middleware to prevent unauthorized access ([399d937](https://github.com/HoseaCodes/Storm-Gate/commit/399d937fc37e92ec2b54cd603bd57af77db43867))
+
 ## [1.11.0-rc.3](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.2...v1.11.0-rc.3) (2026-09-17)
 
 ### 🐛 Bug Fixes
