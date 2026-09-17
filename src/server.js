@@ -9,6 +9,7 @@ import extAuthRouter from './routes/ext-auth.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import wellKnownRouter from './routes/wellKnown.js';
+import oauthRouter, { userRouter as oauthUserRouter } from './routes/oauth.js';
 import connectDB from './config/db.js';
 import rateLimit from 'express-rate-limit';
 import basicAuth from 'express-basic-auth';
@@ -86,6 +87,17 @@ app.get('/me', auth, userController.getMe);
 app.use('/', authRouter)
 app.use('/api/auth/admin', auth, isAdmin, adminRouter);
 app.use('/api/auth/oidc', extAuthRouter);
+
+// Delegated access for services acting on a user's behalf.
+//
+// The split is deliberate and load-bearing. /oauth/token authenticates the
+// CLIENT with its own credentials and must not sit behind user auth -- a
+// service redeeming a code has no user session. Everything else acts as the
+// signed-in user (granting consent, listing connected apps, revoking) and
+// must, or an unauthenticated caller could mint grants for anyone.
+app.use('/oauth', oauthRouter);
+app.use('/oauth', auth, oauthUserRouter);
+
 app.use('/api/user', verifyJWT, userRouter);
 
 const port = process.env.PORT || 8080;

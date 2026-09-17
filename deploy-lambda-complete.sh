@@ -53,6 +53,10 @@ MONGODB_URL="${MONGODB_URL:-mongodb+srv://username:password@cluster.mongodb.net/
 CLIENT_ID="${CLIENT_ID:-your-azure-client-id}"
 TENANT_ID="${TENANT_ID:-your-azure-tenant-id}"
 ACCESS_TOKEN_SECRET="${ACCESS_TOKEN_SECRET:-your-access-token-secret}"
+# Comma-separated origins that a post-login redirect may target. Unset means no
+# redirect target is permitted, which is the safe default: the allowlist fails
+# closed rather than degrading to "allow anything".
+OIDC_ALLOWED_RETURN_ORIGINS="${OIDC_ALLOWED_RETURN_ORIGINS:-}"
 REFRESH_TOKEN_SECRET="${REFRESH_TOKEN_SECRET:-your-refresh-token-secret}"
 CLIENT_SECRET="${CLIENT_SECRET:-your-azure-client-secret}"
 JWT_SECRET="${JWT_SECRET:-your-jwt-secret}"
@@ -423,7 +427,7 @@ configure_environment() {
         EMAIL_HOST EMAIL_PORT EMAIL_USER EMAIL_PASS ADMIN_EMAIL BASE_URL
         REDIRECT_URI EMAIL_INTEGRATOR_BASE_URL
         JWT_SIGNING_ALG JWT_PRIVATE_KEY JWT_PUBLIC_KEY JWT_PREVIOUS_PUBLIC_KEYS
-        JWT_ISSUER"
+        JWT_ISSUER OIDC_ALLOWED_RETURN_ORIGINS"
     export STORM_GATE_CURRENT_FILE="$current_file"
     # Space-separated names to leave exactly as they are on the function, for
     # when you are not sure whether your local copy or production is current.
