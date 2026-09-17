@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.3](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.2...v1.11.0-rc.3) (2026-09-17)
+
+### 🐛 Bug Fixes
+
+* **deployment:** update API stage to use '$default' for correct routing ([bcff502](https://github.com/HoseaCodes/Storm-Gate/commit/bcff5028e784b23f68541d3739e168ffdb5dca86))
+
 ## [1.11.0-rc.2](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.1...v1.11.0-rc.2) (2026-09-17)
 
 ### 🐛 Bug Fixes
