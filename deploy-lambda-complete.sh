@@ -359,7 +359,25 @@ deploy_lambda_function() {
     local image_uri="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG"
     local role_arn="arn:aws:iam::$AWS_ACCOUNT_ID:role/$LAMBDA_ROLE_NAME"
     
-    # Check if function exists
+    # Every mutating Lambda call below is followed by a waiter.
+    #
+    # Lambda serialises changes per function: while LastUpdateStatus is
+    # InProgress, the next call fails with
+    #
+    #   ResourceConflictException: The operation cannot be performed at this
+    #   time. An update is in progress for resource: <arn>
+    #
+    # This function used to fire update-function-code and
+    # update-function-configuration back to back and then sleep 15 seconds at
+    # the end -- the sleep was after both calls, so it protected the *next*
+    # step while leaving the two calls racing each other. A 321 MB container
+    # image never finishes its code update in the zero seconds between them,
+    # so the second call failed every time the function already existed.
+    #
+    # `aws lambda wait` polls the real status instead of guessing at a
+    # duration, so a slow day extends the wait rather than breaking the deploy.
+    # Output is suppressed: these calls each dump the whole function
+    # configuration, and CI logs on a public repository are public.
     if aws lambda get-function --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION &> /dev/null; then
         print_status "Updating existing Lambda function..."
         
@@ -367,14 +385,22 @@ deploy_lambda_function() {
         aws lambda update-function-code \
             --function-name $LAMBDA_FUNCTION_NAME \
             --image-uri $image_uri \
-            --region $AWS_REGION
+            --region $AWS_REGION > /dev/null
+        
+        print_status "Waiting for the code update to finish..."
+        aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
         
         # Update function configuration
         aws lambda update-function-configuration \
             --function-name $LAMBDA_FUNCTION_NAME \
             --timeout 30 \
             --memory-size 512 \
-            --region $AWS_REGION
+            --region $AWS_REGION > /dev/null
+        
+        print_status "Waiting for the configuration update to finish..."
+        aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
             
         print_success "Lambda function updated successfully"
     else
@@ -389,14 +415,21 @@ deploy_lambda_function() {
             --timeout 30 \
             --memory-size 512 \
             --region $AWS_REGION \
-            --description "Storm Gate API - Express.js containerized for Lambda"
+            --description "Storm Gate API - Express.js containerized for Lambda" > /dev/null
+        
+        # A container-image function reports State=Pending, then Active, while
+        # LastUpdateStatus is still InProgress with "The function is being
+        # created". Both have to settle before anything may touch it.
+        print_status "Waiting for the new function to become active..."
+        aws lambda wait function-active \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
+        aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
             
         print_success "Lambda function created successfully"
     fi
     
-    # Wait for function to be ready
-    print_status "Waiting for Lambda function to be ready..."
-    sleep 15
+    print_success "Lambda function is settled and ready for configuration"
 }
 
 # Configure environment variables
