@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.11](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.10...v1.11.0-rc.11) (2026-09-19)
+
+### 🚀 Features
+
+* **oauth:** implement issuer identification in authorization responses per RFC 9207 ([22e2896](https://github.com/HoseaCodes/Storm-Gate/commit/22e289695802891a370db399eb7ef15078891832))
+
 ## [1.11.0-rc.10](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.9...v1.11.0-rc.10) (2026-09-19)
 
 ### 🚀 Features
