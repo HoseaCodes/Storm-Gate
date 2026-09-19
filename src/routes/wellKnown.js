@@ -97,8 +97,11 @@ router.get('/.well-known/oauth-authorization-server', (req, res) => {
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
 
-    // Credentials arrive in the form body; HTTP Basic is not read.
-    token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+    // Basic first: RFC 6749 §2.3.1 says a server MUST support it, and most
+    // clients default to it. The form body is accepted as the alternative.
+    token_endpoint_auth_methods_supported: [
+      'client_secret_basic', 'client_secret_post', 'none',
+    ],
 
     scopes_supported: ['training:read', 'workouts:read', 'workouts:write'],
 

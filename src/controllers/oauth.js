@@ -183,10 +183,68 @@ async function token(req, res) {
   }
 }
 
-/** Authenticate the client, or null when it fails. */
+/**
+ * Credentials from an `Authorization: Basic` header, or null.
+ *
+ * RFC 6749 §2.3.1: the id and secret are each form-urlencoded *before* being
+ * joined and base64-encoded, so they must be decoded after splitting — a secret
+ * containing `+` or `%` is otherwise silently wrong, and the failure looks like
+ * a bad password rather than a parsing bug.
+ *
+ * Split on the *first* colon only: a colon is legal inside a secret.
+ */
+function basicCredentials(req) {
+  const header = req.header?.('authorization') ?? req.headers?.authorization;
+  if (!header || !/^Basic\s/i.test(header)) return null;
+
+  let decoded;
+  try {
+    decoded = Buffer.from(header.replace(/^Basic\s+/i, ''), 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+
+  const separator = decoded.indexOf(':');
+  if (separator < 0) return null;
+
+  try {
+    return {
+      clientId: decodeURIComponent(decoded.slice(0, separator)),
+      clientSecret: decodeURIComponent(decoded.slice(separator + 1)),
+    };
+  } catch {
+    // Not percent-encoded. Some clients send the raw values.
+    return {
+      clientId: decoded.slice(0, separator),
+      clientSecret: decoded.slice(separator + 1),
+    };
+  }
+}
+
+/**
+ * Authenticate the client, or null when it fails.
+ *
+ * Both methods are accepted, and HTTP Basic is not optional: RFC 6749 §2.3.1
+ * says a server MUST support it, and most clients default to it. Reading only
+ * the form body meant a client sending Basic was told `invalid_client` — which
+ * reads as a wrong secret, not as an unsupported authentication method. The
+ * symptom was an authorization code issued and never redeemed, with the failure
+ * attributed to whatever else was being changed at the time.
+ */
 async function authenticateClient(req) {
-  const clientId = req.body?.client_id;
-  const clientSecret = req.body?.client_secret;
+  const basic = basicCredentials(req);
+
+  // Basic first when present. A client that went to the trouble of sending a
+  // header means it; the body is the fallback it may not have populated.
+  const clientId = basic?.clientId ?? req.body?.client_id;
+  const clientSecret = basic?.clientSecret ?? req.body?.client_secret;
+
+  // RFC 6749 §2.3: a client must not authenticate by more than one method.
+  // Disagreeing identities are a confused request, not a credential to try.
+  if (basic && req.body?.client_id && req.body.client_id !== basic.clientId) {
+    return null;
+  }
+
   if (!clientId) return null;
 
   const client = await ServiceClient.findOne({ clientId, status: 'active' });

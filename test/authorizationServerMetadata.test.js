@@ -119,3 +119,22 @@ describe('the authorization endpoint a browser is sent to', () => {
     expect(res.body.token_endpoint).toBe('https://auth.example.com/oauth/token');
   });
 });
+
+describe('advertised client authentication methods', () => {
+  /**
+   * Basic is listed first because a server MUST support it (RFC 6749 §2.3.1)
+   * and most clients default to it. It was missing from the implementation, and
+   * the symptom was an authorization code issued and never redeemed — the
+   * client was told `invalid_client`, which reads as a wrong secret rather than
+   * an unsupported method.
+   */
+  it('includes client_secret_basic', async () => {
+    const res = await metadata();
+    expect(res.body.token_endpoint_auth_methods_supported).toContain('client_secret_basic');
+  });
+
+  it('still includes the form-body method', async () => {
+    const res = await metadata();
+    expect(res.body.token_endpoint_auth_methods_supported).toContain('client_secret_post');
+  });
+});
