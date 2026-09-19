@@ -123,6 +123,23 @@ describe('what a caller may not decide', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.scope).toBe('training:read');
+    // Asserted on what is *stored*, not only on what is reported. The field is
+    // `allowedScopes`; writing `scopes` registered a client permitted to
+    // request nothing, and the response looked correct throughout.
+    expect(created[0].allowedScopes).toEqual(['training:read']);
+  });
+
+  it('persists the scopes under the name the model reads', async () => {
+    // Mongoose drops an unknown field in silence, so a misnamed one produces a
+    // client that authorizes nothing and reports no error anywhere.
+    await register({
+      client_name: 'X',
+      redirect_uris: ['https://example.com/cb'],
+      scope: 'training:read workouts:write',
+    });
+
+    expect(created[0].allowedScopes).toEqual(['training:read', 'workouts:write']);
+    expect(created[0].scopes).toBeUndefined();
   });
 });
 

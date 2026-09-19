@@ -109,7 +109,11 @@ export async function register(req, res) {
       clientSecretHash: clientSecret ? await bcrypt.hash(clientSecret, 10) : undefined,
       redirectUris,
       audience: DEFAULT_AUDIENCE,
-      scopes,
+      // `allowedScopes`, not `scopes`. Mongoose drops an unknown field in
+      // silence, so the wrong name registered a client permitted to request
+      // nothing — and a client with no scopes is refused at /authorize without
+      // ever reaching a consent screen or issuing a code.
+      allowedScopes: scopes,
       isConfidential,
       status: 'active',
     });
