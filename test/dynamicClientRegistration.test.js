@@ -175,3 +175,45 @@ describe('public clients', () => {
     expect(created[0].isConfidential).toBe(false);
   });
 });
+
+/*
+ * Schema validation, against the real model.
+ *
+ * The tests above mock `ServiceClient`, which is right for checking what the
+ * controller decides — and wrong for checking whether the database will accept
+ * it. `clientSecretHash` was `required: true`, so a public client registering
+ * itself produced a 500: exactly the clients that use RFC 7591, since a client
+ * that registers on the fly usually cannot keep a secret.
+ *
+ * Mongoose validates a document without saving, so this needs no connection.
+ */
+describe('what the database will actually accept', () => {
+  it('accepts a public client with no secret', async () => {
+    const { default: ServiceClient } = await vi.importActual('../src/models/serviceClient.js');
+
+    const doc = new ServiceClient({
+      clientId: 'dcr-public', name: 'ChatGPT',
+      redirectUris: ['https://chatgpt.com/connector/oauth/abc'],
+      audience: 'manifestathletics-api', scopes: ['training:read'],
+      isConfidential: false,
+    });
+
+    expect(doc.validateSync()).toBeUndefined();
+  });
+
+  it('still demands a secret from a confidential client', async () => {
+    // The relaxation must be narrow: a client that claims it can hold a secret
+    // and supplies none is a broken registration, not a public client.
+    const { default: ServiceClient } = await vi.importActual('../src/models/serviceClient.js');
+
+    const doc = new ServiceClient({
+      clientId: 'dcr-confidential', name: 'X',
+      redirectUris: ['https://example.com/cb'],
+      audience: 'manifestathletics-api', scopes: ['training:read'],
+      isConfidential: true,
+    });
+
+    const err = doc.validateSync();
+    expect(err?.errors?.clientSecretHash).toBeTruthy();
+  });
+})

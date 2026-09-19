@@ -37,9 +37,17 @@ const serviceClientSchema = new mongoose.Schema(
 
     // bcrypt hash. Confidential clients authenticate at /oauth/token with it.
     // Never stored in the clear, and never returned by any endpoint.
+    //
+    // Required only of confidential clients. A public client has no secret by
+    // definition -- it cannot keep one -- and proves itself with PKCE instead.
+    // Demanding a hash from every client made dynamic registration fail with a
+    // 500 for exactly the clients that register themselves, which are the ones
+    // most likely to be public.
     clientSecretHash: {
       type: String,
-      required: true,
+      required: function requiredForConfidentialClients() {
+        return this.isConfidential !== false;
+      },
     },
 
     // Exact-match allowlist. Matched by full string equality at authorize time
