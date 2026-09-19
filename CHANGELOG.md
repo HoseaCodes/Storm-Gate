@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.6](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.5...v1.11.0-rc.6) (2026-09-19)
+
+### 🚀 Features
+
+* **metadata:** add OAuth 2.0 authorization server metadata endpoint and tests ([b051b5f](https://github.com/HoseaCodes/Storm-Gate/commit/b051b5f072ab1800bf2fe771916e74e5b60f60e4))
+
 ## [1.11.0-rc.5](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.4...v1.11.0-rc.5) (2026-09-18)
 
 ### 🐛 Bug Fixes
