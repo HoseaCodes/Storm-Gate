@@ -91,3 +91,31 @@ describe('/.well-known/oauth-authorization-server', () => {
     ]);
   });
 });
+
+describe('the authorization endpoint a browser is sent to', () => {
+  /**
+   * Consent is rendered by each application, not by Storm Gate — `/oauth/authorize`
+   * here is behind user auth and answers JSON to a caller that already holds a
+   * session. A browser sent to it gets "Invalid Authentication - no token",
+   * which is what a client following this document would otherwise do.
+   */
+  it('is the configured consent page when one is set', async () => {
+    process.env.OAUTH_CONSENT_URL = 'https://app.example.com/connections/authorize';
+    const res = await metadata();
+    expect(res.body.authorization_endpoint).toBe('https://app.example.com/connections/authorize');
+  });
+
+  it('falls back to this service, which is right when nothing renders consent elsewhere', async () => {
+    delete process.env.OAUTH_CONSENT_URL;
+    const res = await metadata();
+    expect(res.body.authorization_endpoint).toBe('https://auth.example.com/oauth/authorize');
+  });
+
+  it('still advertises this service as the token endpoint either way', async () => {
+    // The token exchange is server-to-server and authenticates the client, not
+    // the user, so it belongs here regardless of who renders consent.
+    process.env.OAUTH_CONSENT_URL = 'https://app.example.com/connections/authorize';
+    const res = await metadata();
+    expect(res.body.token_endpoint).toBe('https://auth.example.com/oauth/token');
+  });
+});

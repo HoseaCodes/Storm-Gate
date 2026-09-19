@@ -70,10 +70,25 @@ router.get('/.well-known/oauth-authorization-server', (req, res) => {
    * challenge method `isSupportedChallengeMethod` accepts; `plain` is absent
    * because it is refused, not merely discouraged.
    */
+  /*
+   * The authorization endpoint is a *page*, not this API.
+   *
+   * `/oauth/authorize` here sits behind user auth and answers JSON — it is
+   * called by an application that already holds the user's session. Consent is
+   * rendered by each application rather than by Storm Gate, so the address a
+   * browser should be sent to belongs to that application, and only the
+   * operator knows it.
+   *
+   * Advertising this service's own endpoint instead sends the browser somewhere
+   * that answers "Invalid Authentication - no token", which is exactly what a
+   * client discovering this document would then do.
+   */
+  const consentUrl = process.env.OAUTH_CONSENT_URL;
+
   res.set('cache-control', 'public, max-age=3600');
   res.json({
     issuer: base,
-    authorization_endpoint: `${base}/oauth/authorize`,
+    authorization_endpoint: consentUrl || `${base}/oauth/authorize`,
     token_endpoint: `${base}/oauth/token`,
     revocation_endpoint: `${base}/oauth/revoke`,
     jwks_uri: `${base}/.well-known/jwks.json`,
