@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.14](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.13...v1.11.0-rc.14) (2026-09-19)
+
+### 🐛 Bug Fixes
+
+* **client-registration:** correct scope field name to allowedScopes to prevent silent failures ([da1b7e6](https://github.com/HoseaCodes/Storm-Gate/commit/da1b7e614291701ff63e236f5cc6ef6e7e5b7183))
+
 ## [1.11.0-rc.13](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.12...v1.11.0-rc.13) (2026-09-19)
 
 ### 🚀 Features
