@@ -243,12 +243,20 @@ function tokenBody(params) {
   return new URLSearchParams(params).toString();
 }
 
-async function postToken(params) {
+async function postToken(params, headers = {}) {
   return fetch(`${baseUrl}/oauth/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...headers },
     body: tokenBody(params),
   });
+}
+
+/** RFC 6749 §2.3.1: form-urlencode each half, join with a colon, base64. */
+function basicHeader(clientId, clientSecret) {
+  const encoded = Buffer.from(
+    `${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`,
+  ).toString('base64');
+  return { Authorization: `Basic ${encoded}` };
 }
 
 describe('/oauth/token — authorization_code', () => {
@@ -388,5 +396,82 @@ describe('/oauth/token — refresh and revocation', () => {
     const res = await postToken({ grant_type: 'password', client_id: 'workout-mcp', client_secret: SECRET });
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('unsupported_grant_type');
+  });
+});
+
+
+/*
+ * HTTP Basic client authentication.
+ *
+ * RFC 6749 §2.3.1 says a server MUST support this, and most clients default to
+ * it. It was not implemented: `authenticateClient` read only the form body, so
+ * a client sending Basic was answered `invalid_client` — which reads as a wrong
+ * secret rather than an unsupported method.
+ *
+ * The visible symptom was an authorization code issued and never redeemed, with
+ * nothing in between to attribute it to. That cost several rounds of debugging
+ * the transport instead.
+ */
+describe('/oauth/token — client authentication methods', () => {
+  it('accepts credentials in an Authorization: Basic header', async () => {
+    const code = await getCode();
+    const res = await postToken(
+      {
+        grant_type: 'authorization_code', code,
+        redirect_uri: 'https://app.test/cb', code_verifier: VERIFIER,
+      },
+      basicHeader('workout-mcp', SECRET),
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.access_token).toBeTruthy();
+  });
+
+  it('still accepts credentials in the form body', async () => {
+    // Both methods work; adding one must not remove the other.
+    const code = await getCode();
+    const res = await postToken({
+      grant_type: 'authorization_code', code, client_id: 'workout-mcp',
+      client_secret: SECRET, redirect_uri: 'https://app.test/cb', code_verifier: VERIFIER,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects a wrong secret sent as Basic', async () => {
+    const code = await getCode();
+    const res = await postToken(
+      {
+        grant_type: 'authorization_code', code,
+        redirect_uri: 'https://app.test/cb', code_verifier: VERIFIER,
+      },
+      basicHeader('workout-mcp', 'wrong'),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a request whose two methods name different clients', async () => {
+    // RFC 6749 §2.3: a client must not authenticate by more than one method.
+    // Disagreeing identities are a confused request, not a credential to try.
+    const code = await getCode();
+    const res = await postToken(
+      {
+        grant_type: 'authorization_code', code, client_id: 'someone-else',
+        client_secret: SECRET, redirect_uri: 'https://app.test/cb', code_verifier: VERIFIER,
+      },
+      basicHeader('workout-mcp', SECRET),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it('decodes a secret containing characters that survive form-encoding', async () => {
+    // A secret with `+` or `%` is silently wrong if the halves are not decoded,
+    // and the failure looks like a bad password rather than a parsing bug.
+    const decoded = Buffer.from(
+      Buffer.from(`${encodeURIComponent('workout-mcp')}:${encodeURIComponent('a+b%c')}`)
+        .toString('base64'),
+      'base64',
+    ).toString('utf8');
+    expect(decodeURIComponent(decoded.slice(decoded.indexOf(':') + 1))).toBe('a+b%c');
   });
 });
