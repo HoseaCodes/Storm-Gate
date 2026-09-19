@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.9](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.8...v1.11.0-rc.9) (2026-09-19)
+
+### 🚀 Features
+
+* **auth:** enhance client authentication methods to support Basic Auth ([9a1d0af](https://github.com/HoseaCodes/Storm-Gate/commit/9a1d0af05c01028566000c3513286fc4f54126b6))
+* **oauth:** implement Basic Auth support for client authentication ([d8f1f1e](https://github.com/HoseaCodes/Storm-Gate/commit/d8f1f1e6feae399eb320fcaf6bf275392cc05947))
+
 ## [1.11.0-rc.8](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.7...v1.11.0-rc.8) (2026-09-19)
 
 ### 🚀 Features
