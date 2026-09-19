@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.10](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.9...v1.11.0-rc.10) (2026-09-19)
+
+### 🚀 Features
+
+* **auth:** extend authorization code lifetime to five minutes for improved client exchanges ([eca31b7](https://github.com/HoseaCodes/Storm-Gate/commit/eca31b7b8029f711559e818449b44ec33b0794e1))
+
 ## [1.11.0-rc.9](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.8...v1.11.0-rc.9) (2026-09-19)
 
 ### 🚀 Features
