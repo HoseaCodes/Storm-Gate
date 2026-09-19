@@ -35,6 +35,64 @@ function baseUrl(req) {
  *       200:
  *         description: JSON Web Key Set
  */
+/**
+ * @swagger
+ * /.well-known/oauth-authorization-server:
+ *   get:
+ *     summary: OAuth 2.0 authorization server metadata (RFC 8414)
+ *     description: >
+ *       Lets a client discover the authorize and token endpoints, and confirm
+ *       PKCE support, without being configured by hand.
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Authorization server metadata
+ */
+router.get('/.well-known/oauth-authorization-server', (req, res) => {
+  const base = baseUrl(req);
+
+  /*
+   * Written because clients refuse to proceed without it.
+   *
+   * ChatGPT rejects a server whose metadata does not advertise
+   * `code_challenge_methods_supported: ["S256"]` — correctly, since a client
+   * cannot otherwise know that sending a code challenge will be honoured
+   * rather than ignored. Without this document every consumer has to be told
+   * the endpoints out of band, and a hand-typed endpoint is a hand-typed
+   * mistake.
+   *
+   * `openid-configuration` already exists but predates delegated access: it
+   * advertises `response_types_supported: ["token"]` and names no endpoints,
+   * so it describes a server this one no longer is. It is left alone rather
+   * than widened, because other consumers read it.
+   *
+   * Every value here is a claim about behaviour that exists. S256 is the only
+   * challenge method `isSupportedChallengeMethod` accepts; `plain` is absent
+   * because it is refused, not merely discouraged.
+   */
+  res.set('cache-control', 'public, max-age=3600');
+  res.json({
+    issuer: base,
+    authorization_endpoint: `${base}/oauth/authorize`,
+    token_endpoint: `${base}/oauth/token`,
+    revocation_endpoint: `${base}/oauth/revoke`,
+    jwks_uri: `${base}/.well-known/jwks.json`,
+
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    code_challenge_methods_supported: ['S256'],
+
+    // Credentials arrive in the form body; HTTP Basic is not read.
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+
+    scopes_supported: ['training:read', 'workouts:read', 'workouts:write'],
+
+    // Absent deliberately: there is no dynamic client registration. Clients are
+    // registered by an operator, and advertising an endpoint that does not
+    // exist would turn a clear "not supported" into a failed request.
+  });
+});
+
 router.get('/.well-known/jwks.json', (req, res) => {
   // Keys are stable and rotation is operator-driven, so a long cache is safe
   // and keeps verifiers off this endpoint. `must-revalidate` bounds how long a
