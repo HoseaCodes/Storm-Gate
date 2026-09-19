@@ -109,9 +109,12 @@ router.get('/.well-known/oauth-authorization-server', (req, res) => {
 
     scopes_supported: ['training:read', 'workouts:read', 'workouts:write'],
 
-    // Absent deliberately: there is no dynamic client registration. Clients are
-    // registered by an operator, and advertising an endpoint that does not
-    // exist would turn a clear "not supported" into a failed request.
+    /*
+     * RFC 7591. A remote client such as ChatGPT generates its redirect URI per
+     * connector, so there is nothing an operator could pre-register — without
+     * this it cannot create a connector at all.
+     */
+    registration_endpoint: `${base}/oauth/register`,
   });
 });
 

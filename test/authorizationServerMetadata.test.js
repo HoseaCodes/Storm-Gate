@@ -72,11 +72,18 @@ describe('/.well-known/oauth-authorization-server', () => {
     expect(res.body.grant_types_supported).toContain('refresh_token');
   });
 
-  it('omits a registration endpoint, because there is none', async () => {
-    // Advertising one would turn a clear "not supported" into a failed request
-    // against a 404.
+  it('advertises the registration endpoint, and points it at the real route', async () => {
+    /*
+     * This used to assert the opposite, on the reasoning that clients are
+     * registered by an operator and advertising an endpoint that does not exist
+     * turns a clear "not supported" into a failed request.
+     *
+     * That reasoning held for clients we choose. It does not hold for a remote
+     * client that generates its redirect URI per connector: there is nothing to
+     * pre-register, and without RFC 7591 it cannot create a connector at all.
+     */
     const res = await metadata();
-    expect(res.body.registration_endpoint).toBeUndefined();
+    expect(res.body.registration_endpoint).toBe('https://auth.example.com/oauth/register');
   });
 
   it('needs no credential — a client reads it before it has one', async () => {
