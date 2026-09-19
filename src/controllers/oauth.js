@@ -17,7 +17,7 @@ import bcrypt from 'bcrypt';
 import ServiceClient from '../models/serviceClient.js';
 import ServiceGrant from '../models/serviceGrant.js';
 import Logger from '../utils/logger-lambda.js';
-import { signAccessToken } from '../utils/signingKeys.js';
+import { getIssuer, signAccessToken } from '../utils/signingKeys.js';
 import { verifyPkce, isSupportedChallengeMethod } from '../utils/pkce.js';
 import { issueCode, consumeCode } from '../utils/authCodeStore.js';
 import {
@@ -57,6 +57,7 @@ function redirectWithError(res, redirectUri, state, error, description) {
   url.searchParams.set('error', error);
   if (description) url.searchParams.set('error_description', description);
   if (state) url.searchParams.set('state', state);
+  setIssuer(url);
   return res.redirect(url.toString());
 }
 
@@ -72,6 +73,20 @@ function redirectWithError(res, redirectUri, state, error, description) {
  * exact defect being fixed elsewhere in this codebase. Everything after those
  * two checks may safely redirect, because the destination is now known-good.
  */
+/**
+ * RFC 9207: name the authorization server in its own response.
+ *
+ * A client that can talk to more than one authorization server cannot otherwise
+ * tell which one answered, and a code minted by a different server looks
+ * identical. OAuth 2.1 clients are expected to check it, and some refuse a
+ * response without it — the code arrives, the client discards it, and nothing
+ * is ever redeemed. That failure produces no error anywhere on this side.
+ */
+function setIssuer(url) {
+  const issuer = getIssuer();
+  if (issuer) url.searchParams.set('iss', issuer);
+}
+
 async function authorize(req, res) {
   try {
     const {
@@ -156,6 +171,7 @@ async function authorize(req, res) {
     const url = new URL(redirectUri);
     url.searchParams.set('code', code);
     if (state) url.searchParams.set('state', state);
+    setIssuer(url);
     return res.redirect(url.toString());
   } catch (err) {
     logger.error(`Authorization failed: ${err.message}`);
@@ -456,6 +472,7 @@ async function decision(req, res) {
     const url = new URL(redirectUri);
     url.searchParams.set('code', code);
     if (state) url.searchParams.set('state', state);
+    setIssuer(url);
     return res.redirect(url.toString());
   } catch (err) {
     logger.error(`Consent decision failed: ${err.message}`);

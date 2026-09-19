@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import { snapshotEnv, restoreEnv } from './helpers.js';
 import { computeS256Challenge } from '../src/utils/pkce.js';
+import { resetSigningKeys } from '../src/utils/signingKeys.js';
 
 const findOneClient = vi.fn();
 const findOneGrant = vi.fn();
@@ -473,5 +474,30 @@ describe('/oauth/token — client authentication methods', () => {
       'base64',
     ).toString('utf8');
     expect(decodeURIComponent(decoded.slice(decoded.indexOf(':') + 1))).toBe('a+b%c');
+  });
+});
+
+describe('/oauth/authorize — issuer identification (RFC 9207)', () => {
+  /*
+   * Asserted on the redirect itself, not on the metadata document. A document
+   * that claims the parameter while the response omits it is worse than
+   * silence: a client that checks will discard every code it is given, and
+   * nothing on this side records a failure.
+   */
+  it('names this server in the authorization response', async () => {
+    // `iss` is the configured issuer — the same value stamped on tokens — so
+    // the harness has to supply one. A deployment without JWT_ISSUER emits no
+    // `iss`, which is the gap this test exists to make visible.
+    process.env.JWT_ISSUER = 'https://auth.test';
+    resetSigningKeys();
+
+    findOneClient.mockResolvedValue(makeClient());
+    findOneGrant.mockResolvedValue(makeGrant());
+
+    const res = await fetch(authorizeUrl(), { redirect: 'manual' });
+    const location = new URL(res.headers.get('location'));
+
+    expect(location.searchParams.get('code')).toBeTruthy();
+    expect(location.searchParams.get('iss')).toBe('https://auth.test');
   });
 });

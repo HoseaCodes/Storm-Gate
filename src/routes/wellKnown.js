@@ -97,6 +97,10 @@ router.get('/.well-known/oauth-authorization-server', (req, res) => {
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
 
+    // RFC 9207. A client that checks which server answered can only do so if
+    // the server says it does this.
+    authorization_response_iss_parameter_supported: true,
+
     // Basic first: RFC 6749 §2.3.1 says a server MUST support it, and most
     // clients default to it. The form body is accepted as the alternative.
     token_endpoint_auth_methods_supported: [

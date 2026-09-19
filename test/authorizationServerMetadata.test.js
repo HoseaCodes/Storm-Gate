@@ -138,3 +138,17 @@ describe('advertised client authentication methods', () => {
     expect(res.body.token_endpoint_auth_methods_supported).toContain('client_secret_post');
   });
 });
+
+describe('issuer identification (RFC 9207)', () => {
+  /**
+   * A client talking to more than one authorization server cannot otherwise
+   * tell which one answered, and a code from a different server looks
+   * identical. Some OAuth 2.1 clients refuse a response without `iss` — the
+   * code arrives, is discarded, and nothing is redeemed, with no error raised
+   * anywhere on this side.
+   */
+  it('advertises that responses carry iss', async () => {
+    const res = await metadata();
+    expect(res.body.authorization_response_iss_parameter_supported).toBe(true);
+  });
+});
