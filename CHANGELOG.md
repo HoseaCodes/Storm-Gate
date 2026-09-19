@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.13](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.12...v1.11.0-rc.13) (2026-09-19)
+
+### 🚀 Features
+
+* **service-client:** update clientSecretHash requirement for public clients in dynamic registration ([8ae66e3](https://github.com/HoseaCodes/Storm-Gate/commit/8ae66e3575186d4141c782655fca81fb4506b7ef))
+
 ## [1.11.0-rc.12](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.11...v1.11.0-rc.12) (2026-09-19)
 
 ### 🚀 Features
