@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.7](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.6...v1.11.0-rc.7) (2026-09-19)
+
+### 🚀 Features
+
+* **metadata:** update authorization endpoint to use configurable consent URL ([da97cd4](https://github.com/HoseaCodes/Storm-Gate/commit/da97cd46eabaa3120a949601a51433f066792440))
+
 ## [1.11.0-rc.6](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.5...v1.11.0-rc.6) (2026-09-19)
 
 ### 🚀 Features
