@@ -4,7 +4,15 @@ import User from "../models/user.js";
 import BlogUser from "../models/blogUser.js";
 import Logger from "../utils/logger-lambda.js";
 import { signAccessToken } from "../utils/signingKeys.js";
-import { cache } from "../utils/cache.js";
+import { isAllowedReturnUrl } from "../utils/redirectAllowlist.js";
+import {
+  createAuthSession,
+  consumeAuthSession,
+  discardAuthSession,
+  storeRefreshToken,
+  isCurrentRefreshToken,
+  invalidateRefreshToken,
+} from "../utils/oidcSessionStore.js";
 
 const logger = new Logger("auth");
 
@@ -26,8 +34,10 @@ const initializeOIDCConfig = async () => {
   }
 };
 
-// Store state and nonce temporarily (in production, use Redis or database)
-const authSessions = new Map();
+// Login state lives in MongoDB (see src/utils/oidcSessionStore.js). It was a
+// process-local Map, which is why these routes could not be mounted on the
+// Lambda entrypoint: /login and /callback are separate requests and Lambda
+// makes no promise they share a container.
 
 /**
  * Initiate OIDC Authorization Code Flow
@@ -35,6 +45,15 @@ const authSessions = new Map();
  */
 async function initiateLogin(req, res) {
   try {
+    // Validate return_url first: before the IdP round trip, before any state is
+    // allocated, and before the victim of a crafted link authenticates at all.
+    // An attacker's link should fail flat, not after a real login.
+    const requestedReturnUrl = req.query.return_url;
+    if (requestedReturnUrl && !isAllowedReturnUrl(requestedReturnUrl)) {
+      logger.error('Rejected login with a return_url outside the allowlist');
+      return res.status(400).json({ error: 'Invalid return_url' });
+    }
+
     const config = await initializeOIDCConfig();
     
     // Generate state and code verifier for PKCE
@@ -42,12 +61,10 @@ async function initiateLogin(req, res) {
     const codeVerifier = oauth.randomPKCECodeVerifier();
     const codeChallenge = await oauth.calculatePKCECodeChallenge(codeVerifier);
     
-    // Store session data (in production, use secure session storage)
-    authSessions.set(state, {
+    await createAuthSession(state, {
       codeVerifier,
       application: req.query.application || 'default',
-      returnUrl: req.query.return_url,
-      timestamp: Date.now()
+      returnUrl: requestedReturnUrl || null,
     });
     
     // Build authorization URL
@@ -92,19 +109,15 @@ async function handleCallback(req, res) {
       });
     }
     
-    // Validate state parameter
-    const sessionData = authSessions.get(state);
+    // Reading the session destroys it, so `state` is single-use. The previous
+    // implementation deleted it only after a successful exchange, leaving a
+    // window in which the same state could be replayed -- the attack `state`
+    // exists to prevent. Expired rows are reaped by a TTL index rather than by
+    // sweeping the whole collection on every callback.
+    const sessionData = await consumeAuthSession(state);
     if (!sessionData) {
-      logger.error('Invalid or expired state parameter');
+      logger.error('Invalid, expired or already-used state parameter');
       return res.status(400).json({ error: 'Invalid authentication request' });
-    }
-    
-    // Clean up expired sessions (older than 10 minutes)
-    const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
-    for (const [key, value] of authSessions.entries()) {
-      if (value.timestamp < tenMinutesAgo) {
-        authSessions.delete(key);
-      }
     }
     
     // Exchange authorization code for tokens
@@ -131,9 +144,6 @@ async function handleCallback(req, res) {
     // Store refresh token securely
     await storeRefreshToken(user._id, refreshToken);
     
-    // Clean up session
-    authSessions.delete(state);
-    
     // Set secure cookies
     const cookieOptions = {
       httpOnly: true,
@@ -153,9 +163,22 @@ async function handleCallback(req, res) {
       path: '/'
     });
     
-    // Redirect to application or return tokens
+    // Redirect to the application without the token.
+    //
+    // The access token used to be appended as ?token=..., which leaked it into
+    // browser history, Referer headers on any outbound link, proxy logs and
+    // analytics -- and, before the allowlist above, to any host an attacker
+    // named. The accesstoken cookie set immediately above already carries it to
+    // the same origin with httpOnly/secure/sameSite, so the query parameter
+    // bought nothing that the cookie does not.
+    //
+    // Re-checked here rather than trusting the stored value: defence in depth
+    // against anything that could alter the stored session between the two points.
+    if (sessionData.returnUrl && isAllowedReturnUrl(sessionData.returnUrl)) {
+      return res.redirect(sessionData.returnUrl);
+    }
     if (sessionData.returnUrl) {
-      return res.redirect(`${sessionData.returnUrl}?token=${accessToken}`);
+      logger.error('Stored return_url failed re-validation; falling back to JSON');
     }
     
     res.json({
@@ -176,7 +199,7 @@ async function handleCallback(req, res) {
     
   } catch (error) {
     logger.error('Callback handling failed:', error);
-    authSessions.delete(req.query.state); // Clean up on error
+    await discardAuthSession(req.query.state); // Clean up on error
     
     res.status(500).json({ 
       error: 'Authentication processing failed',
@@ -203,9 +226,9 @@ async function refreshAccessToken(req, res) {
     // Verify refresh token
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
     
-    // Check if refresh token is still valid in storage
-    const storedToken = await getStoredRefreshToken(decoded.id);
-    if (storedToken !== refreshToken) {
+    // Compared as a digest, so the stored value never reaches this scope and
+    // cannot leak through a log line or an error message.
+    if (!(await isCurrentRefreshToken(decoded.id, refreshToken))) {
       return res.status(401).json({ error: 'Invalid refresh token' });
     }
     
@@ -354,19 +377,6 @@ function createInternalRefreshToken(user) {
     process.env.REFRESH_TOKEN_SECRET,
     { expiresIn: '7d' }
   );
-}
-
-async function storeRefreshToken(userId, token) {
-  // Store in cache with 7-day TTL
-  cache.set(`refresh_token_${userId}`, token, 7 * 24 * 60 * 60);
-}
-
-async function getStoredRefreshToken(userId) {
-  return cache.get(`refresh_token_${userId}`);
-}
-
-async function invalidateRefreshToken(userId) {
-  cache.del(`refresh_token_${userId}`);
 }
 
 const authController = {

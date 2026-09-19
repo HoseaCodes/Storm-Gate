@@ -15,10 +15,22 @@ LAMBDA_ROLE_NAME="${LAMBDA_ROLE_NAME:-lambda-execution-role}"
 API_GATEWAY_NAME="${API_GATEWAY_NAME:-storm-gate-api}"
 API_STAGE_NAME="${API_STAGE_NAME:-prod}"
 
+# Which dotenv file to read. Parameterised so a second environment is a
+# different file rather than a different checkout: `ENV_FILE=.env.staging`.
+# In CI there is usually no file at all -- the values arrive already exported,
+# and load_env_file just says so and moves on.
+ENV_FILE="${ENV_FILE:-.env}"
+
+# Turn the "continuing with placeholder values" warning below into a hard
+# failure. Interactively that warning is a useful nudge; in CI it is a way to
+# deploy a function pointed at mongodb+srv://username:password@cluster because
+# a repository secret was misspelled, and to report success while doing it.
+STRICT_ENV="${STRICT_ENV:-0}"
+
 # Load environment variables from .env file if it exists
 load_env_file() {
-    if [ -f ".env" ]; then
-        print_status "Loading environment variables from .env file..."
+    if [ -f "$ENV_FILE" ]; then
+        print_status "Loading environment variables from $ENV_FILE..."
         # Parsed line by line rather than sourced. `source` evaluates each line
         # as shell, so an unquoted value containing & ; | or a backtick is read
         # as syntax: a Mongo connection string ending `?retryWrites=true&w=majority`
@@ -41,10 +53,10 @@ load_env_file() {
                 \'*\') value="${value#\'}"; value="${value%\'}" ;;
             esac
             export "$name=$value"
-        done < .env
-        print_success "Environment variables loaded from .env"
+        done < "$ENV_FILE"
+        print_success "Environment variables loaded from $ENV_FILE"
     else
-        print_warning ".env file not found, using default/environment values"
+        print_warning "$ENV_FILE not found, using default/environment values"
     fi
 }
 
@@ -53,6 +65,10 @@ MONGODB_URL="${MONGODB_URL:-mongodb+srv://username:password@cluster.mongodb.net/
 CLIENT_ID="${CLIENT_ID:-your-azure-client-id}"
 TENANT_ID="${TENANT_ID:-your-azure-tenant-id}"
 ACCESS_TOKEN_SECRET="${ACCESS_TOKEN_SECRET:-your-access-token-secret}"
+# Comma-separated origins that a post-login redirect may target. Unset means no
+# redirect target is permitted, which is the safe default: the allowlist fails
+# closed rather than degrading to "allow anything".
+OIDC_ALLOWED_RETURN_ORIGINS="${OIDC_ALLOWED_RETURN_ORIGINS:-}"
 REFRESH_TOKEN_SECRET="${REFRESH_TOKEN_SECRET:-your-refresh-token-secret}"
 CLIENT_SECRET="${CLIENT_SECRET:-your-azure-client-secret}"
 JWT_SECRET="${JWT_SECRET:-your-jwt-secret}"
@@ -176,6 +192,11 @@ validate_env_vars() {
         for var in "${missing_vars[@]}"; do
             echo "  - $var"
         done
+        if [ "$STRICT_ENV" = "1" ]; then
+            print_error "STRICT_ENV=1 and the variables above are unset or still placeholders."
+            print_error "Refusing to deploy. In CI this means a repository secret is missing or misnamed."
+            exit 1
+        fi
         print_warning "You can set them as environment variables or edit this script directly"
         print_warning "Continuing with placeholder values - Lambda function may not work until configured"
     else
@@ -192,7 +213,15 @@ install_dependencies() {
         exit 1
     fi
     
-    npm install
+    # The image builds its own dependencies with `npm ci` inside
+    # Dockerfile.lambda, and nothing this script runs on the host needs the
+    # tree. CI has already installed and tested, and a bare `npm install`
+    # there would rewrite package-lock.json under the commit being deployed.
+    if [ "${SKIP_NPM_INSTALL:-0}" = "1" ]; then
+        print_status "SKIP_NPM_INSTALL=1 - using the existing node_modules"
+    else
+        npm install
+    fi
     print_success "Dependencies installed"
 }
 
@@ -330,7 +359,25 @@ deploy_lambda_function() {
     local image_uri="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$IMAGE_TAG"
     local role_arn="arn:aws:iam::$AWS_ACCOUNT_ID:role/$LAMBDA_ROLE_NAME"
     
-    # Check if function exists
+    # Every mutating Lambda call below is followed by a waiter.
+    #
+    # Lambda serialises changes per function: while LastUpdateStatus is
+    # InProgress, the next call fails with
+    #
+    #   ResourceConflictException: The operation cannot be performed at this
+    #   time. An update is in progress for resource: <arn>
+    #
+    # This function used to fire update-function-code and
+    # update-function-configuration back to back and then sleep 15 seconds at
+    # the end -- the sleep was after both calls, so it protected the *next*
+    # step while leaving the two calls racing each other. A 321 MB container
+    # image never finishes its code update in the zero seconds between them,
+    # so the second call failed every time the function already existed.
+    #
+    # `aws lambda wait` polls the real status instead of guessing at a
+    # duration, so a slow day extends the wait rather than breaking the deploy.
+    # Output is suppressed: these calls each dump the whole function
+    # configuration, and CI logs on a public repository are public.
     if aws lambda get-function --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION &> /dev/null; then
         print_status "Updating existing Lambda function..."
         
@@ -338,14 +385,22 @@ deploy_lambda_function() {
         aws lambda update-function-code \
             --function-name $LAMBDA_FUNCTION_NAME \
             --image-uri $image_uri \
-            --region $AWS_REGION
+            --region $AWS_REGION > /dev/null
+        
+        print_status "Waiting for the code update to finish..."
+        aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
         
         # Update function configuration
         aws lambda update-function-configuration \
             --function-name $LAMBDA_FUNCTION_NAME \
             --timeout 30 \
             --memory-size 512 \
-            --region $AWS_REGION
+            --region $AWS_REGION > /dev/null
+        
+        print_status "Waiting for the configuration update to finish..."
+        aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
             
         print_success "Lambda function updated successfully"
     else
@@ -360,14 +415,21 @@ deploy_lambda_function() {
             --timeout 30 \
             --memory-size 512 \
             --region $AWS_REGION \
-            --description "Storm Gate API - Express.js containerized for Lambda"
+            --description "Storm Gate API - Express.js containerized for Lambda" > /dev/null
+        
+        # A container-image function reports State=Pending, then Active, while
+        # LastUpdateStatus is still InProgress with "The function is being
+        # created". Both have to settle before anything may touch it.
+        print_status "Waiting for the new function to become active..."
+        aws lambda wait function-active \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
+        aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME --region $AWS_REGION
             
         print_success "Lambda function created successfully"
     fi
     
-    # Wait for function to be ready
-    print_status "Waiting for Lambda function to be ready..."
-    sleep 15
+    print_success "Lambda function is settled and ready for configuration"
 }
 
 # Configure environment variables
@@ -423,7 +485,7 @@ configure_environment() {
         EMAIL_HOST EMAIL_PORT EMAIL_USER EMAIL_PASS ADMIN_EMAIL BASE_URL
         REDIRECT_URI EMAIL_INTEGRATOR_BASE_URL
         JWT_SIGNING_ALG JWT_PRIVATE_KEY JWT_PUBLIC_KEY JWT_PREVIOUS_PUBLIC_KEYS
-        JWT_ISSUER"
+        JWT_ISSUER OIDC_ALLOWED_RETURN_ORIGINS"
     export STORM_GATE_CURRENT_FILE="$current_file"
     # Space-separated names to leave exactly as they are on the function, for
     # when you are not sure whether your local copy or production is current.
@@ -535,7 +597,14 @@ create_api_gateway() {
 add_lambda_permission() {
     print_status "Adding Lambda permission for API Gateway..."
     
-    local statement_id="api-gateway-invoke-$(date +%s)"
+    # Derived from the API id, not from $(date +%s). A timestamped id makes
+    # every deploy append a *new* statement to the function's resource policy
+    # instead of re-asserting the same one, and that policy is capped at 20 KB
+    # -- so a deploy-per-merge pipeline eventually fails every deploy with
+    # PolicyLengthExceededException and needs the policy pruned by hand. This
+    # id is stable, so the second call is a conflict that the fallback below
+    # correctly treats as "already granted".
+    local statement_id="apigw-invoke-${API_ID}"
     
     # Add permission (ignore error if already exists)
     aws lambda add-permission \
@@ -731,6 +800,10 @@ show_help() {
     echo "  --tag TAG               Image tag (default: latest)"
     echo "  --account-id ID         AWS Account ID (auto-detected if not provided)"
     echo "  --role-name NAME        IAM role name (default: lambda-execution-role)"
+    echo "  --api-name NAME         API Gateway name (default: storm-gate-api)"
+    echo "  --api-stage NAME        API Gateway stage (default: prod)"
+    echo "  --env-file PATH         Dotenv file to read (default: .env)"
+    echo "  --strict-env            Fail instead of warning on missing/placeholder vars"
     echo "  --skip-test             Skip function testing"
     echo "  --skip-api-gateway      Skip API Gateway setup"
     echo "  --api-gateway-only      Only set up API Gateway (requires existing Lambda function)"
@@ -785,6 +858,22 @@ main() {
             --role-name)
                 LAMBDA_ROLE_NAME="$2"
                 shift 2
+                ;;
+            --api-name)
+                API_GATEWAY_NAME="$2"
+                shift 2
+                ;;
+            --api-stage)
+                API_STAGE_NAME="$2"
+                shift 2
+                ;;
+            --env-file)
+                ENV_FILE="$2"
+                shift 2
+                ;;
+            --strict-env)
+                STRICT_ENV=1
+                shift
                 ;;
             --skip-test)
                 SKIP_TEST=true

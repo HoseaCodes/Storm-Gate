@@ -197,3 +197,73 @@ describe('refresh tokens stay symmetric', () => {
     expect(jwt.verify(token, process.env.REFRESH_TOKEN_SECRET)).toMatchObject({ id: 'u1' });
   });
 });
+
+describe('auth middleware — delegated tokens are not user sessions', () => {
+  /**
+   * Found by running the OAuth flow end to end: a delegated token was accepted
+   * here, `/me` returned the athlete, and every consumer concluded the user was
+   * making the request. The service then had the user's own routes, which is
+   * strictly more than the grant ever covered.
+   *
+   * These tokens are genuine and correctly signed. What disqualifies them is
+   * `act` — they represent a service acting for a user elsewhere, not the user
+   * signing in here.
+   */
+  const delegated = (overrides = {}) => ({
+    sub: 'u1',
+    // Emitted alongside `sub` for consumers that still read `id`. This is why
+    // the escalation was invisible: everything downstream resolved the right
+    // user and could not tell the request came from a service.
+    id: 'u1',
+    act: { sub: 'workout-mcp' },
+    scope: 'training:read workouts:write',
+    ...overrides,
+  });
+
+  it('rejects an HS256 delegated token', async () => {
+    const token = jwt.sign(delegated(), SECRET, {
+      expiresIn: '5m', audience: 'manifestathletics-api',
+    });
+    const { res, nextCalled } = await runMiddleware(auth, `Bearer ${token}`);
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('rejects an RS256 delegated token', async () => {
+    enableRs256();
+    const token = jwt.sign(delegated(), kp.privateKey, {
+      algorithm: 'RS256', expiresIn: '5m',
+      audience: 'manifestathletics-api', keyid: kp.kid,
+    });
+    const { res, nextCalled } = await runMiddleware(auth, `Bearer ${token}`);
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('rejects it even with no audience, since `act` alone disqualifies', () => {
+    // Guards against a fix that keyed on `aud` instead: dropping the audience
+    // must not restore access.
+    const token = jwt.sign(delegated(), SECRET, { expiresIn: '5m' });
+    return runMiddleware(auth, `Bearer ${token}`).then(({ res, nextCalled }) => {
+      expect(nextCalled).toBe(false);
+      expect(res.statusCode).toBe(401);
+    });
+  });
+
+  it('still accepts an ordinary user token', async () => {
+    // The rejection must be specific. A login token carries no `act`.
+    const { req, nextCalled } = await runMiddleware(
+      auth, `Bearer ${createAccessToken({ id: 'u1' })}`,
+    );
+    expect(nextCalled).toBe(true);
+    expect(req.user.id).toBe('u1');
+    expect(req.user.act).toBeUndefined();
+  });
+
+  it('still accepts a guest token', async () => {
+    const token = jwt.sign({ id: 'guest1', isGuest: true }, SECRET, { expiresIn: '5m' });
+    const { req, nextCalled } = await runMiddleware(auth, `Bearer ${token}`);
+    expect(nextCalled).toBe(true);
+    expect(req.user.isGuest).toBe(true);
+  });
+});

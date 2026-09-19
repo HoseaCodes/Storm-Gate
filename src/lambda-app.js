@@ -17,6 +17,9 @@ import crypto from 'crypto';
 import userController from './controllers/user.js';
 import auth from './utils/auth.js';
 import wellKnownRouter from './routes/wellKnown.js';
+import oauthRouter, { userRouter as oauthUserRouter } from './routes/oauth.js';
+import extAuthRouter from './routes/ext-auth.js';
+import { ensureOAuthIndexes } from './utils/ensureOAuthIndexes.js';
 import serverless from 'serverless-http';
 
 // Load environment variables
@@ -241,6 +244,25 @@ app.post('/verify-reset-token/:token', userController.verifyResetToken);
 
 // Protected endpoints (JWT required)
 app.get('/me', auth, userController.getMe);
+
+// Delegated access for services acting on a user's behalf.
+//
+// Mountable here, unlike the OIDC routes, because its state lives in MongoDB
+// rather than in process memory. Lambda gives no guarantee that the container
+// serving /oauth/authorize is the one that later serves /oauth/token, so an
+// in-memory authorization code would fail intermittently and unpredictably.
+//
+// The split matters as much here as in server.js: /oauth/token authenticates
+// the CLIENT and must not sit behind user auth; everything else acts as the
+// signed-in user and must.
+app.use('/oauth', oauthRouter);
+app.use('/oauth', auth, oauthUserRouter);
+
+// Azure Entra ID sign-in. Mountable here only since its login state moved from
+// a process-local Map into MongoDB: /login and /callback are separate requests
+// and Lambda does not guarantee they share a container.
+app.use('/api/auth/oidc', extAuthRouter);
+
 app.use('/api/user', verifyJWT, userRouter);
 
 // Lambda-specific initialization
@@ -251,6 +273,12 @@ const initializeApp = async () => {
     try {
       console.log('Initializing application...');
       await connectDB();
+
+      // The delegated-access collections rely on TTL indexes to reap expired
+      // authorization codes and refresh tokens. Verified explicitly rather than
+      // left to autoIndex, whose failures are not visible from here.
+      await ensureOAuthIndexes({ log: console });
+
       isInitialized = true;
       console.log('Application initialized successfully');
     } catch (error) {
