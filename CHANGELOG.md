@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.12](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.11...v1.11.0-rc.12) (2026-09-19)
+
+### 🚀 Features
+
+* **client-registration:** implement dynamic client registration endpoint per RFC 7591 ([240d1db](https://github.com/HoseaCodes/Storm-Gate/commit/240d1db9e65bf02459903265a34857925e0068a1))
+
 ## [1.11.0-rc.11](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.10...v1.11.0-rc.11) (2026-09-19)
 
 ### 🚀 Features
