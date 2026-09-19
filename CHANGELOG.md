@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.10.0...v1.11.0) (2026-09-19)
+
+### 🚀 Features
+
+* implement service refresh token management ([bfff342](https://github.com/HoseaCodes/Storm-Gate/commit/bfff34256db5d11a68ad2331cd1a951b336c9e52))
+* **metadata:** add OAuth 2.0 authorization server metadata endpoint and tests ([b051b5f](https://github.com/HoseaCodes/Storm-Gate/commit/b051b5f072ab1800bf2fe771916e74e5b60f60e4))
+
+### 🐛 Bug Fixes
+
+* Add ECR repository policy for Lambda image retrieval ([55f6992](https://github.com/HoseaCodes/Storm-Gate/commit/55f69922a075de163d3633ff2ebe6e5a97b411ce))
+* **auth:** reject delegated tokens in middleware to prevent unauthorized access ([399d937](https://github.com/HoseaCodes/Storm-Gate/commit/399d937fc37e92ec2b54cd603bd57af77db43867))
+* **deployment:** improve Lambda deployment process with wait commands to ensure updates complete ([1000e18](https://github.com/HoseaCodes/Storm-Gate/commit/1000e1878449c30807fc8e4c9cab9f6c34cc82cb))
+* **deployment:** update API stage to use '$default' for correct routing ([bcff502](https://github.com/HoseaCodes/Storm-Gate/commit/bcff5028e784b23f68541d3739e168ffdb5dca86))
+
 ## [1.11.0-rc.6](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.5...v1.11.0-rc.6) (2026-09-19)
 
 ### 🚀 Features
