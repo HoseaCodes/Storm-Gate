@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.8](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.7...v1.11.0-rc.8) (2026-09-19)
+
+### 🚀 Features
+
+* **config:** add OAUTH_CONSENT_URL to deployment scripts ([2a99651](https://github.com/HoseaCodes/Storm-Gate/commit/2a9965173e395c2b80db369a7dca875156105186))
+
 ## [1.11.0-rc.7](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.6...v1.11.0-rc.7) (2026-09-19)
 
 ### 🚀 Features
