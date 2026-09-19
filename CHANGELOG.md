@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.11.0-rc.5](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.4...v1.11.0-rc.5) (2026-09-18)
+
+### 🐛 Bug Fixes
+
+* **deployment:** improve Lambda deployment process with wait commands to ensure updates complete ([1000e18](https://github.com/HoseaCodes/Storm-Gate/commit/1000e1878449c30807fc8e4c9cab9f6c34cc82cb))
+
 ## [1.11.0-rc.4](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.3...v1.11.0-rc.4) (2026-09-17)
 
 ### 🐛 Bug Fixes
