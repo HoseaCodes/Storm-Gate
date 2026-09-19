@@ -7,7 +7,25 @@
 import crypto from 'crypto';
 import AuthorizationCode from '../models/authorizationCode.js';
 
-const CODE_TTL_MS = 60_000;
+/*
+ * Five minutes.
+ *
+ * It was sixty seconds, which is shorter than the round trip some clients
+ * actually make. A redirect delivers the code to the client's *browser*, and
+ * the exchange is then performed by the client's *backend* — across a redirect
+ * chain, a queue and whatever the user's network is doing. ChatGPT exceeded a
+ * minute consistently: the code was issued and simply never redeemed, and the
+ * client reported only that the connection could not be set up.
+ *
+ * That failure is indistinguishable from a wrong secret or a broken endpoint
+ * from the outside, and it cost several rounds of debugging elsewhere.
+ *
+ * RFC 6749 §4.1.2 recommends a maximum of ten minutes. Five keeps a wide margin
+ * under that while still being short, and the exposure barely moves: a code is
+ * single-use, bound to the client, the redirect URI and a PKCE challenge, so an
+ * intercepted one is useless without the verifier.
+ */
+const CODE_TTL_MS = 5 * 60_000;
 
 /** Codes are high-entropy, so a fast digest is the right hash here. */
 function hashCode(code) {
