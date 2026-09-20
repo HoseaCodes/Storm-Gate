@@ -170,6 +170,37 @@ The full runbook, including the native-module and image-size pitfalls, is in
 `AWS_REGION` as environment overrides, so it can target more than one environment
 without modification.
 
+## Monitoring
+
+**[CloudWatch dashboard →](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=Storm-Gate)**
+(requires AWS console access to the account the service is deployed in)
+
+Lambda invocations, error rate, duration against the 30s timeout, API Gateway
+request counts and latency, cold starts, recent errors, HTTP status codes parsed
+out of the morgan access log, and auth failures.
+
+```sh
+make dashboard           # create or update the dashboard
+make dashboard-cost      # what's free and what isn't
+make lambda-logs         # last hour of CloudWatch logs
+make lambda-logs-follow  # tail in real time
+make logs-retention      # set 30-day retention (logs never expire by default)
+```
+
+It is built entirely from metrics AWS already publishes — no metric filters, which
+would each become a billable custom metric. One of the three free dashboards, 21 of
+the 50 free metrics; the four Logs Insights widgets scan a few KB per day against a
+5 GB monthly free allowance.
+
+The default window is 24 hours because this service is low-traffic: on a short window
+the metric widgets read *No data found* even when everything is healthy. Pass
+`--window` to [`scripts/create-dashboard.sh`](scripts/create-dashboard.sh) to change it.
+
+Two gaps worth knowing: there are **no alarms**, so nothing notifies you of an error
+spike, and most controllers still log through `src/utils/logger.js`, which writes only
+to `logs/allLogs.log` and never to stdout — so their output does not reach CloudWatch.
+`src/utils/logger-lambda.js` is the one that does.
+
 ## Architecture and engineering notes
 
 [ARCHITECTURE.md](ARCHITECTURE.md) covers the token model, why refresh tokens stay
