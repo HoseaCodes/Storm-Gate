@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.12.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0...v1.12.0) (2026-09-20)
+
+### 🚀 Features
+
+* **auth:** enhance client authentication methods to support Basic Auth ([9a1d0af](https://github.com/HoseaCodes/Storm-Gate/commit/9a1d0af05c01028566000c3513286fc4f54126b6))
+* **auth:** extend authorization code lifetime to five minutes for improved client exchanges ([eca31b7](https://github.com/HoseaCodes/Storm-Gate/commit/eca31b7b8029f711559e818449b44ec33b0794e1))
+* **client-registration:** implement dynamic client registration endpoint per RFC 7591 ([240d1db](https://github.com/HoseaCodes/Storm-Gate/commit/240d1db9e65bf02459903265a34857925e0068a1))
+* **config:** add OAUTH_CONSENT_URL to deployment scripts ([2a99651](https://github.com/HoseaCodes/Storm-Gate/commit/2a9965173e395c2b80db369a7dca875156105186))
+* **metadata:** update authorization endpoint to use configurable consent URL ([da97cd4](https://github.com/HoseaCodes/Storm-Gate/commit/da97cd46eabaa3120a949601a51433f066792440))
+* **oauth:** implement Basic Auth support for client authentication ([d8f1f1e](https://github.com/HoseaCodes/Storm-Gate/commit/d8f1f1e6feae399eb320fcaf6bf275392cc05947))
+* **oauth:** implement issuer identification in authorization responses per RFC 9207 ([22e2896](https://github.com/HoseaCodes/Storm-Gate/commit/22e289695802891a370db399eb7ef15078891832))
+* **service-client:** update clientSecretHash requirement for public clients in dynamic registration ([8ae66e3](https://github.com/HoseaCodes/Storm-Gate/commit/8ae66e3575186d4141c782655fca81fb4506b7ef))
+
+### 🐛 Bug Fixes
+
+* **client-registration:** correct scope field name to allowedScopes to prevent silent failures ([da1b7e6](https://github.com/HoseaCodes/Storm-Gate/commit/da1b7e614291701ff63e236f5cc6ef6e7e5b7183))
+
 ## [1.11.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.10.0...v1.11.0) (2026-09-19)
 
 ### 🚀 Features
