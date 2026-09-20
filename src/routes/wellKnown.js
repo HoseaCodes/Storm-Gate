@@ -70,10 +70,25 @@ router.get('/.well-known/oauth-authorization-server', (req, res) => {
    * challenge method `isSupportedChallengeMethod` accepts; `plain` is absent
    * because it is refused, not merely discouraged.
    */
+  /*
+   * The authorization endpoint is a *page*, not this API.
+   *
+   * `/oauth/authorize` here sits behind user auth and answers JSON — it is
+   * called by an application that already holds the user's session. Consent is
+   * rendered by each application rather than by Storm Gate, so the address a
+   * browser should be sent to belongs to that application, and only the
+   * operator knows it.
+   *
+   * Advertising this service's own endpoint instead sends the browser somewhere
+   * that answers "Invalid Authentication - no token", which is exactly what a
+   * client discovering this document would then do.
+   */
+  const consentUrl = process.env.OAUTH_CONSENT_URL;
+
   res.set('cache-control', 'public, max-age=3600');
   res.json({
     issuer: base,
-    authorization_endpoint: `${base}/oauth/authorize`,
+    authorization_endpoint: consentUrl || `${base}/oauth/authorize`,
     token_endpoint: `${base}/oauth/token`,
     revocation_endpoint: `${base}/oauth/revoke`,
     jwks_uri: `${base}/.well-known/jwks.json`,
@@ -82,14 +97,24 @@ router.get('/.well-known/oauth-authorization-server', (req, res) => {
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
 
-    // Credentials arrive in the form body; HTTP Basic is not read.
-    token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+    // RFC 9207. A client that checks which server answered can only do so if
+    // the server says it does this.
+    authorization_response_iss_parameter_supported: true,
+
+    // Basic first: RFC 6749 §2.3.1 says a server MUST support it, and most
+    // clients default to it. The form body is accepted as the alternative.
+    token_endpoint_auth_methods_supported: [
+      'client_secret_basic', 'client_secret_post', 'none',
+    ],
 
     scopes_supported: ['training:read', 'workouts:read', 'workouts:write'],
 
-    // Absent deliberately: there is no dynamic client registration. Clients are
-    // registered by an operator, and advertising an endpoint that does not
-    // exist would turn a clear "not supported" into a failed request.
+    /*
+     * RFC 7591. A remote client such as ChatGPT generates its redirect URI per
+     * connector, so there is nothing an operator could pre-register — without
+     * this it cannot create a connector at all.
+     */
+    registration_endpoint: `${base}/oauth/register`,
   });
 });
 

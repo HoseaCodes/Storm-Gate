@@ -15,6 +15,54 @@ All notable changes to this project will be documented in this file. See [Conven
 * **auth:** reject delegated tokens in middleware to prevent unauthorized access ([399d937](https://github.com/HoseaCodes/Storm-Gate/commit/399d937fc37e92ec2b54cd603bd57af77db43867))
 * **deployment:** improve Lambda deployment process with wait commands to ensure updates complete ([1000e18](https://github.com/HoseaCodes/Storm-Gate/commit/1000e1878449c30807fc8e4c9cab9f6c34cc82cb))
 * **deployment:** update API stage to use '$default' for correct routing ([bcff502](https://github.com/HoseaCodes/Storm-Gate/commit/bcff5028e784b23f68541d3739e168ffdb5dca86))
+## [1.11.0-rc.14](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.13...v1.11.0-rc.14) (2026-09-19)
+
+### 🐛 Bug Fixes
+
+* **client-registration:** correct scope field name to allowedScopes to prevent silent failures ([da1b7e6](https://github.com/HoseaCodes/Storm-Gate/commit/da1b7e614291701ff63e236f5cc6ef6e7e5b7183))
+
+## [1.11.0-rc.13](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.12...v1.11.0-rc.13) (2026-09-19)
+
+### 🚀 Features
+
+* **service-client:** update clientSecretHash requirement for public clients in dynamic registration ([8ae66e3](https://github.com/HoseaCodes/Storm-Gate/commit/8ae66e3575186d4141c782655fca81fb4506b7ef))
+
+## [1.11.0-rc.12](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.11...v1.11.0-rc.12) (2026-09-19)
+
+### 🚀 Features
+
+* **client-registration:** implement dynamic client registration endpoint per RFC 7591 ([240d1db](https://github.com/HoseaCodes/Storm-Gate/commit/240d1db9e65bf02459903265a34857925e0068a1))
+
+## [1.11.0-rc.11](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.10...v1.11.0-rc.11) (2026-09-19)
+
+### 🚀 Features
+
+* **oauth:** implement issuer identification in authorization responses per RFC 9207 ([22e2896](https://github.com/HoseaCodes/Storm-Gate/commit/22e289695802891a370db399eb7ef15078891832))
+
+## [1.11.0-rc.10](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.9...v1.11.0-rc.10) (2026-09-19)
+
+### 🚀 Features
+
+* **auth:** extend authorization code lifetime to five minutes for improved client exchanges ([eca31b7](https://github.com/HoseaCodes/Storm-Gate/commit/eca31b7b8029f711559e818449b44ec33b0794e1))
+
+## [1.11.0-rc.9](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.8...v1.11.0-rc.9) (2026-09-19)
+
+### 🚀 Features
+
+* **auth:** enhance client authentication methods to support Basic Auth ([9a1d0af](https://github.com/HoseaCodes/Storm-Gate/commit/9a1d0af05c01028566000c3513286fc4f54126b6))
+* **oauth:** implement Basic Auth support for client authentication ([d8f1f1e](https://github.com/HoseaCodes/Storm-Gate/commit/d8f1f1e6feae399eb320fcaf6bf275392cc05947))
+
+## [1.11.0-rc.8](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.7...v1.11.0-rc.8) (2026-09-19)
+
+### 🚀 Features
+
+* **config:** add OAUTH_CONSENT_URL to deployment scripts ([2a99651](https://github.com/HoseaCodes/Storm-Gate/commit/2a9965173e395c2b80db369a7dca875156105186))
+
+## [1.11.0-rc.7](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.6...v1.11.0-rc.7) (2026-09-19)
+
+### 🚀 Features
+
+* **metadata:** update authorization endpoint to use configurable consent URL ([da97cd4](https://github.com/HoseaCodes/Storm-Gate/commit/da97cd46eabaa3120a949601a51433f066792440))
 
 ## [1.11.0-rc.6](https://github.com/HoseaCodes/Storm-Gate/compare/v1.11.0-rc.5...v1.11.0-rc.6) (2026-09-19)
 

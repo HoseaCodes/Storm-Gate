@@ -72,11 +72,18 @@ describe('/.well-known/oauth-authorization-server', () => {
     expect(res.body.grant_types_supported).toContain('refresh_token');
   });
 
-  it('omits a registration endpoint, because there is none', async () => {
-    // Advertising one would turn a clear "not supported" into a failed request
-    // against a 404.
+  it('advertises the registration endpoint, and points it at the real route', async () => {
+    /*
+     * This used to assert the opposite, on the reasoning that clients are
+     * registered by an operator and advertising an endpoint that does not exist
+     * turns a clear "not supported" into a failed request.
+     *
+     * That reasoning held for clients we choose. It does not hold for a remote
+     * client that generates its redirect URI per connector: there is nothing to
+     * pre-register, and without RFC 7591 it cannot create a connector at all.
+     */
     const res = await metadata();
-    expect(res.body.registration_endpoint).toBeUndefined();
+    expect(res.body.registration_endpoint).toBe('https://auth.example.com/oauth/register');
   });
 
   it('needs no credential — a client reads it before it has one', async () => {
@@ -89,5 +96,66 @@ describe('/.well-known/oauth-authorization-server', () => {
     expect(res.body.scopes_supported).toEqual([
       'training:read', 'workouts:read', 'workouts:write',
     ]);
+  });
+});
+
+describe('the authorization endpoint a browser is sent to', () => {
+  /**
+   * Consent is rendered by each application, not by Storm Gate — `/oauth/authorize`
+   * here is behind user auth and answers JSON to a caller that already holds a
+   * session. A browser sent to it gets "Invalid Authentication - no token",
+   * which is what a client following this document would otherwise do.
+   */
+  it('is the configured consent page when one is set', async () => {
+    process.env.OAUTH_CONSENT_URL = 'https://app.example.com/connections/authorize';
+    const res = await metadata();
+    expect(res.body.authorization_endpoint).toBe('https://app.example.com/connections/authorize');
+  });
+
+  it('falls back to this service, which is right when nothing renders consent elsewhere', async () => {
+    delete process.env.OAUTH_CONSENT_URL;
+    const res = await metadata();
+    expect(res.body.authorization_endpoint).toBe('https://auth.example.com/oauth/authorize');
+  });
+
+  it('still advertises this service as the token endpoint either way', async () => {
+    // The token exchange is server-to-server and authenticates the client, not
+    // the user, so it belongs here regardless of who renders consent.
+    process.env.OAUTH_CONSENT_URL = 'https://app.example.com/connections/authorize';
+    const res = await metadata();
+    expect(res.body.token_endpoint).toBe('https://auth.example.com/oauth/token');
+  });
+});
+
+describe('advertised client authentication methods', () => {
+  /**
+   * Basic is listed first because a server MUST support it (RFC 6749 §2.3.1)
+   * and most clients default to it. It was missing from the implementation, and
+   * the symptom was an authorization code issued and never redeemed — the
+   * client was told `invalid_client`, which reads as a wrong secret rather than
+   * an unsupported method.
+   */
+  it('includes client_secret_basic', async () => {
+    const res = await metadata();
+    expect(res.body.token_endpoint_auth_methods_supported).toContain('client_secret_basic');
+  });
+
+  it('still includes the form-body method', async () => {
+    const res = await metadata();
+    expect(res.body.token_endpoint_auth_methods_supported).toContain('client_secret_post');
+  });
+});
+
+describe('issuer identification (RFC 9207)', () => {
+  /**
+   * A client talking to more than one authorization server cannot otherwise
+   * tell which one answered, and a code from a different server looks
+   * identical. Some OAuth 2.1 clients refuse a response without `iss` — the
+   * code arrives, is discarded, and nothing is redeemed, with no error raised
+   * anywhere on this side.
+   */
+  it('advertises that responses carry iss', async () => {
+    const res = await metadata();
+    expect(res.body.authorization_response_iss_parameter_supported).toBe(true);
   });
 });

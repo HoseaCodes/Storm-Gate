@@ -17,7 +17,7 @@ import bcrypt from 'bcrypt';
 import ServiceClient from '../models/serviceClient.js';
 import ServiceGrant from '../models/serviceGrant.js';
 import Logger from '../utils/logger-lambda.js';
-import { signAccessToken } from '../utils/signingKeys.js';
+import { getIssuer, signAccessToken } from '../utils/signingKeys.js';
 import { verifyPkce, isSupportedChallengeMethod } from '../utils/pkce.js';
 import { issueCode, consumeCode } from '../utils/authCodeStore.js';
 import {
@@ -57,6 +57,7 @@ function redirectWithError(res, redirectUri, state, error, description) {
   url.searchParams.set('error', error);
   if (description) url.searchParams.set('error_description', description);
   if (state) url.searchParams.set('state', state);
+  setIssuer(url);
   return res.redirect(url.toString());
 }
 
@@ -72,6 +73,20 @@ function redirectWithError(res, redirectUri, state, error, description) {
  * exact defect being fixed elsewhere in this codebase. Everything after those
  * two checks may safely redirect, because the destination is now known-good.
  */
+/**
+ * RFC 9207: name the authorization server in its own response.
+ *
+ * A client that can talk to more than one authorization server cannot otherwise
+ * tell which one answered, and a code minted by a different server looks
+ * identical. OAuth 2.1 clients are expected to check it, and some refuse a
+ * response without it — the code arrives, the client discards it, and nothing
+ * is ever redeemed. That failure produces no error anywhere on this side.
+ */
+function setIssuer(url) {
+  const issuer = getIssuer();
+  if (issuer) url.searchParams.set('iss', issuer);
+}
+
 async function authorize(req, res) {
   try {
     const {
@@ -156,6 +171,7 @@ async function authorize(req, res) {
     const url = new URL(redirectUri);
     url.searchParams.set('code', code);
     if (state) url.searchParams.set('state', state);
+    setIssuer(url);
     return res.redirect(url.toString());
   } catch (err) {
     logger.error(`Authorization failed: ${err.message}`);
@@ -183,10 +199,68 @@ async function token(req, res) {
   }
 }
 
-/** Authenticate the client, or null when it fails. */
+/**
+ * Credentials from an `Authorization: Basic` header, or null.
+ *
+ * RFC 6749 §2.3.1: the id and secret are each form-urlencoded *before* being
+ * joined and base64-encoded, so they must be decoded after splitting — a secret
+ * containing `+` or `%` is otherwise silently wrong, and the failure looks like
+ * a bad password rather than a parsing bug.
+ *
+ * Split on the *first* colon only: a colon is legal inside a secret.
+ */
+function basicCredentials(req) {
+  const header = req.header?.('authorization') ?? req.headers?.authorization;
+  if (!header || !/^Basic\s/i.test(header)) return null;
+
+  let decoded;
+  try {
+    decoded = Buffer.from(header.replace(/^Basic\s+/i, ''), 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+
+  const separator = decoded.indexOf(':');
+  if (separator < 0) return null;
+
+  try {
+    return {
+      clientId: decodeURIComponent(decoded.slice(0, separator)),
+      clientSecret: decodeURIComponent(decoded.slice(separator + 1)),
+    };
+  } catch {
+    // Not percent-encoded. Some clients send the raw values.
+    return {
+      clientId: decoded.slice(0, separator),
+      clientSecret: decoded.slice(separator + 1),
+    };
+  }
+}
+
+/**
+ * Authenticate the client, or null when it fails.
+ *
+ * Both methods are accepted, and HTTP Basic is not optional: RFC 6749 §2.3.1
+ * says a server MUST support it, and most clients default to it. Reading only
+ * the form body meant a client sending Basic was told `invalid_client` — which
+ * reads as a wrong secret, not as an unsupported authentication method. The
+ * symptom was an authorization code issued and never redeemed, with the failure
+ * attributed to whatever else was being changed at the time.
+ */
 async function authenticateClient(req) {
-  const clientId = req.body?.client_id;
-  const clientSecret = req.body?.client_secret;
+  const basic = basicCredentials(req);
+
+  // Basic first when present. A client that went to the trouble of sending a
+  // header means it; the body is the fallback it may not have populated.
+  const clientId = basic?.clientId ?? req.body?.client_id;
+  const clientSecret = basic?.clientSecret ?? req.body?.client_secret;
+
+  // RFC 6749 §2.3: a client must not authenticate by more than one method.
+  // Disagreeing identities are a confused request, not a credential to try.
+  if (basic && req.body?.client_id && req.body.client_id !== basic.clientId) {
+    return null;
+  }
+
   if (!clientId) return null;
 
   const client = await ServiceClient.findOne({ clientId, status: 'active' });
@@ -398,6 +472,7 @@ async function decision(req, res) {
     const url = new URL(redirectUri);
     url.searchParams.set('code', code);
     if (state) url.searchParams.set('state', state);
+    setIssuer(url);
     return res.redirect(url.toString());
   } catch (err) {
     logger.error(`Consent decision failed: ${err.message}`);

@@ -55,3 +55,25 @@ describe('authorization code hashing', () => {
     expect(hashCode('a')).not.toBe(hashCode('b'));
   });
 });
+
+/*
+ * Authorization code lifetime.
+ *
+ * A redirect delivers the code to the client's browser; the client's backend
+ * then exchanges it. That round trip crosses a redirect chain, a queue and the
+ * user's network, and sixty seconds was not enough for it — ChatGPT's codes
+ * were issued and never redeemed, which from the outside is indistinguishable
+ * from a wrong secret or a broken endpoint.
+ */
+describe('authorization code lifetime', () => {
+  it('is long enough for a browser-to-backend exchange', async () => {
+    const { CODE_TTL_MS } = await import('../src/utils/authCodeStore.js');
+    // A minute is shorter than real clients take.
+    expect(CODE_TTL_MS).toBeGreaterThan(60_000);
+  });
+
+  it('stays well inside the ten minutes RFC 6749 §4.1.2 recommends', async () => {
+    const { CODE_TTL_MS } = await import('../src/utils/authCodeStore.js');
+    expect(CODE_TTL_MS).toBeLessThanOrEqual(10 * 60_000);
+  });
+});
