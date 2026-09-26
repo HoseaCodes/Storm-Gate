@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.12.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.12.0...v1.12.1) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* **auth, emailVerification:** implement email verification process with 6-digit code and related endpoints ([d16594b](https://github.com/HoseaCodes/Storm-Gate/commit/d16594bc56cbed88814c742c2969820f46fe12fd))
+* **auth, rateLimit:** implement rate limiting for public auth routes and add tests ([316b544](https://github.com/HoseaCodes/Storm-Gate/commit/316b544696f80b6b91fde7d4355ee281922674ac))
+* **auth, session:** implement session-based refresh token management and enhance security ([069e58e](https://github.com/HoseaCodes/Storm-Gate/commit/069e58ea3f1ea141a68f8d2cdc672e7985365bc0))
+* **auth, user:** enhance login security by verifying credentials and preventing timing attacks ([1e503e0](https://github.com/HoseaCodes/Storm-Gate/commit/1e503e0b02f2e2f1463dcd220231cc6ec61d5ff4))
+* **auth, user:** enhance password validation and enforce minimum length requirements ([bfc23c3](https://github.com/HoseaCodes/Storm-Gate/commit/bfc23c34c0088c3f6fbc9e72f5f2830950e6de02))
+* **errors:** implement centralized error handling with sendServerError utility ([772318e](https://github.com/HoseaCodes/Storm-Gate/commit/772318e70fff61176164d0acaa06d11a81e18357))
+* **registration, user:** include application field in user response and update approval requirements ([769d5d4](https://github.com/HoseaCodes/Storm-Gate/commit/769d5d4223e149e7bb3f994b079022beea6e9578))
+* **registration:** enforce server-defined role and status during user registration ([2d1314b](https://github.com/HoseaCodes/Storm-Gate/commit/2d1314b8216389a5ec481787ac2c55d82ce57afb))
+
 ## [1.12.1-rc.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.12.0...v1.12.1-rc.1) (2026-09-26)
 
 ### 🐛 Bug Fixes
