@@ -68,6 +68,16 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Email ownership. No default on purpose: accounts created before
+    // verification existed have no value and are treated as verified (see
+    // utils/emailVerification.js), so shipping this locks nobody out. New
+    // sign-ups are created with false.
+    emailVerified: { type: Boolean },
+    emailVerifiedAt: { type: Date, default: null },
+    // HMAC of the current 6-digit code; the code itself is never stored.
+    emailVerificationCodeHash: { type: String, default: null },
+    emailVerificationExpires: { type: Date, default: null },
+    emailVerificationAttempts: { type: Number, default: 0 },
   },
   {
     timestamps: true,

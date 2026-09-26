@@ -1,7 +1,8 @@
 // Make sure the short-lived-credential TTL indexes actually exist.
 //
-// Four collections depend on a TTL index to reap expired rows: the two backing
-// delegated access, and the two backing OIDC login. Their
+// Six collections depend on a TTL index to reap expired rows: the two backing
+// delegated access, the two backing OIDC login, sign-in refresh tokens, and
+// rate-limit windows. Their
 // absence is not a correctness bug -- every read compares `expiresAt` itself,
 // precisely so that expiry never depends on the TTL monitor -- but it is an
 // unbounded-growth bug, and a silent one.
@@ -18,11 +19,13 @@ import AuthorizationCode from '../models/authorizationCode.js';
 import ServiceRefreshToken from '../models/serviceRefreshToken.js';
 import OidcAuthSession from '../models/oidcAuthSession.js';
 import OidcRefreshToken from '../models/oidcRefreshToken.js';
+import SessionRefreshToken from '../models/sessionRefreshToken.js';
+import RateLimitWindow from '../models/rateLimitWindow.js';
 
 export async function ensureOAuthIndexes({ log = console } = {}) {
   const results = [];
 
-  for (const model of [AuthorizationCode, ServiceRefreshToken, OidcAuthSession, OidcRefreshToken]) {
+  for (const model of [AuthorizationCode, ServiceRefreshToken, OidcAuthSession, OidcRefreshToken, SessionRefreshToken, RateLimitWindow]) {
     try {
       await model.createIndexes();
       results.push({ collection: model.collection.name, ok: true });

@@ -1,6 +1,8 @@
 import express from 'express';
 import authCtrl from '../controllers/auth.js';
 import { guestLogin, getGuestUser } from '../controllers/guest.js';
+import { authLimits } from "../utils/rateLimit.js";
+import { verifyEmail, resendVerification } from "../controllers/emailVerification.js";
 const router = express.Router();
 
 /**
@@ -58,10 +60,10 @@ const router = express.Router();
  *       500:
  *         description: Internal Server Error
  */
-router.post("/register", authCtrl.register);
+router.post("/register", authLimits.register, authCtrl.register);
 
 // Guest login endpoint
-router.post("/guest-login", guestLogin);
+router.post("/guest-login", authLimits.guestLogin, guestLogin);
 
 // Get guest user by id
 router.get("/guest/:id", getGuestUser);
@@ -108,7 +110,7 @@ router.get("/guest/:id", getGuestUser);
  *       500:
  *         description: Internal Server Error
  */
-router.post("/login", authCtrl.login);
+router.post("/login", authLimits.login, authCtrl.login);
 
 /**
  * @swagger
@@ -160,7 +162,78 @@ router.post("/logout", authCtrl.logout);
  *       500:
  *         description: Internal Server Error
  */
-router.get("/refresh_token", authCtrl.refreshToken);
+router.get("/refresh_token", authLimits.refresh, authCtrl.refreshToken);
+
+/**
+ * @swagger
+ * /refresh:
+ *   post:
+ *     summary: Exchange a refresh token for a new access token and refresh token
+ *     description: For clients that hold the refresh token themselves (mobile). The presented token is spent; reusing a spent token ends the whole session.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New accesstoken and refreshToken
+ *       401:
+ *         description: Invalid, expired or reused refresh token
+ */
+router.post("/refresh", authLimits.refresh, authCtrl.refresh);
+
+/**
+ * @swagger
+ * /verify-email:
+ *   post:
+ *     summary: Confirm an email address with the 6-digit code sent at sign-up
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code]
+ *             properties:
+ *               email: { type: string }
+ *               code: { type: string, example: "123456" }
+ *     responses:
+ *       200:
+ *         description: Email verified
+ *       400:
+ *         description: Invalid or expired verification code
+ */
+router.post("/verify-email", authLimits.verifyEmail, verifyEmail);
+
+/**
+ * @swagger
+ * /resend-verification:
+ *   post:
+ *     summary: Send a new verification code
+ *     description: Always answers the same way, whether or not the account exists or needs verification.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200:
+ *         description: Acknowledged
+ */
+router.post("/resend-verification", authLimits.resendVerification, resendVerification);
 
 /**
  * @swagger
@@ -201,7 +274,7 @@ router.get("/refresh_token", authCtrl.refreshToken);
  *       500:
  *         description: Internal Server Error
  */
-router.post("/forgot-password", authCtrl.requestPasswordReset);
+router.post("/forgot-password", authLimits.forgotPassword, authCtrl.requestPasswordReset);
 
 /**
  * @swagger
@@ -282,7 +355,7 @@ router.post("/forgot-password", authCtrl.requestPasswordReset);
  *       500:
  *         description: Internal Server Error
  */
-router.post("/verify-reset-token/:token", authCtrl.verifyResetToken);
+router.post("/verify-reset-token/:token", authLimits.resetPassword, authCtrl.verifyResetToken);
 
 /**
  * @swagger
@@ -331,6 +404,6 @@ router.post("/verify-reset-token/:token", authCtrl.verifyResetToken);
  *       500:
  *         description: Internal Server Error
  */ 
-router.post("/reset-password/:token", authCtrl.resetPassword);
+router.post("/reset-password/:token", authLimits.resetPassword, authCtrl.resetPassword);
 
 export default router;

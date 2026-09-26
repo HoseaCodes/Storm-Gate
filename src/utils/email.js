@@ -161,3 +161,27 @@ export const sendPasswordResetEmail = async (userData) => {
     return false;
   }
 };
+
+// Send a 6-digit email verification code.
+export const sendVerificationCodeEmail = async ({ email, name, code, expiryTime }) => {
+  try {
+    const result = await emailDelegate.sendEmailVerification({
+      email,
+      // The delegate requires a name; sign-up does not.
+      name: name || 'there',
+      code,
+      expiryTime,
+      appName: 'Storm Gate',
+      appDisplayName: 'User Management System',
+    });
+
+    if (result.success) {
+      logger.info(`Verification code email sent. Message ID: ${result.messageId}`);
+      return true;
+    }
+    throw new Error(`Email delegate failed: ${result.error}`);
+  } catch (error) {
+    logger.error('Error sending verification code email:', { message: error.message });
+    return false;
+  }
+};
