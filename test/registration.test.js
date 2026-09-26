@@ -28,6 +28,13 @@ const { FakeUser, FakeBlogUser, saved } = vi.hoisted(() => {
 vi.mock('../src/models/user.js', () => ({ default: FakeUser }));
 vi.mock('../src/models/blogUser.js', () => ({ default: FakeBlogUser }));
 vi.mock('../src/models/unregisteredUser.js', () => ({ default: class {} }));
+vi.mock('../src/utils/sessionRefreshStore.js', () => ({
+  SESSION_REFRESH_TTL_SECONDS: 30 * 24 * 60 * 60,
+  issueRefreshToken: vi.fn(async () => 'issued-refresh-token'),
+  rotateRefreshToken: vi.fn(async () => ({ status: 'invalid' })),
+  revokeRefreshFamily: vi.fn(async () => 0),
+  revokeAllForUser: vi.fn(async () => 0),
+}));
 vi.mock('../src/utils/email.js', () => ({
   sendApprovalEmail: vi.fn(async () => true),
   sendRegistrationPendingEmail: vi.fn(async () => true),

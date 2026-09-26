@@ -164,6 +164,31 @@ router.get("/refresh_token", authCtrl.refreshToken);
 
 /**
  * @swagger
+ * /refresh:
+ *   post:
+ *     summary: Exchange a refresh token for a new access token and refresh token
+ *     description: For clients that hold the refresh token themselves (mobile). The presented token is spent; reusing a spent token ends the whole session.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New accesstoken and refreshToken
+ *       401:
+ *         description: Invalid, expired or reused refresh token
+ */
+router.post("/refresh", authCtrl.refresh);
+
+/**
+ * @swagger
  * /api/user/forgot-password:
  *   post:
  *     summary: Request password reset

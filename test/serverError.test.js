@@ -11,6 +11,10 @@ vi.mock('../src/models/user.js', () => ({
 }));
 vi.mock('../src/models/blogUser.js', () => ({ default: class {} }));
 vi.mock('../src/models/unregisteredUser.js', () => ({ default: class {} }));
+vi.mock('../src/utils/sessionRefreshStore.js', () => ({
+  SESSION_REFRESH_TTL_SECONDS: 30 * 24 * 60 * 60,
+  rotateRefreshToken: vi.fn(async () => { throw new Error(INTERNAL); }),
+}));
 vi.mock('../src/utils/email.js', () => ({
   sendApprovalEmail: vi.fn(),
   sendRegistrationPendingEmail: vi.fn(),
@@ -84,8 +88,8 @@ describe.each([
   it('refreshToken no longer returns the error object', async () => {
     const res = mockRes();
 
-    // No cookies at all makes the handler throw before verifying anything.
-    await getCtrl().refreshToken({}, res);
+    // The token store fails while rotating the cookie's refresh token.
+    await getCtrl().refreshToken({ cookies: { refreshtoken: 'some-token' } }, res);
 
     expectNoLeak(res);
     expect(res.body).not.toHaveProperty('err');

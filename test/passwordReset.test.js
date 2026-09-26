@@ -22,6 +22,13 @@ vi.mock('../src/models/user.js', () => ({
   default: { findOne: vi.fn(), findById: vi.fn() },
 }));
 vi.mock('../src/models/blogUser.js', () => ({ default: { findOne: vi.fn() } }));
+vi.mock('../src/utils/sessionRefreshStore.js', () => ({
+  SESSION_REFRESH_TTL_SECONDS: 30 * 24 * 60 * 60,
+  issueRefreshToken: vi.fn(async () => 'issued-refresh-token'),
+  rotateRefreshToken: vi.fn(async () => ({ status: 'invalid' })),
+  revokeRefreshFamily: vi.fn(async () => 0),
+  revokeAllForUser: vi.fn(async () => 0),
+}));
 vi.mock('../src/utils/email.js', () => ({
   sendPasswordResetEmail: (...args) => sendPasswordResetEmail(...args),
   sendApprovalEmail: vi.fn(),
@@ -29,6 +36,7 @@ vi.mock('../src/utils/email.js', () => ({
 }));
 
 const User = (await import('../src/models/user.js')).default;
+const { revokeAllForUser } = await import('../src/utils/sessionRefreshStore.js');
 const authCtrl = (await import('../src/controllers/auth.js')).default;
 
 function mockRes() {
@@ -188,6 +196,7 @@ describe('resetPassword', () => {
     // Single use: the token must not survive its own redemption.
     expect(user.resetPasswordToken).toBeNull();
     expect(user.resetPasswordExpires).toBeNull();
+    expect(revokeAllForUser).toHaveBeenCalledWith(user._id);
   });
 
   it('queries on the declared expiry field', async () => {

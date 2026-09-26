@@ -5,7 +5,8 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { cache } from "../utils/cache.js";
-import { createAccessToken, createRefreshToken } from "../utils/auth.js";
+import { startSession, refreshFromCookie, refreshFromBody, endSession } from "../utils/session.js";
+import { revokeAllForUser } from "../utils/sessionRefreshStore.js";
 import BlogUser from "../models/blogUser.js";
 import UnregisteredUser from "../models/unregisteredUser.js";
 import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
@@ -124,40 +125,28 @@ async function register(req, res) {
     }
 
     // For approved users, create tokens and proceed normally
-    const accesstoken = createAccessToken({ id: savedUser._id });
-    const refreshtoken = createRefreshToken({ id: savedUser._id });
+    const session = await startSession(req, res, savedUser._id, { setCookie: true });
 
-    res.cookie("refreshtoken", refreshtoken, {
-      httpOnly: true,
-      path: "/api/auth/refresh_token",
-      maxAge: 7 * 25 * 60 * 60 * 1000,
-    });
-
-    res.json({ accesstoken, status: "Successful" });
+    res.json({ ...session, status: "Successful" });
   } catch (err) {
     logger.error('Registration error:', err);
     return sendServerError(res, err, logger);
   }
 }
 
-function refreshToken(req, res) {
+// Refresh tokens are stored and rotated; see utils/session.js.
+async function refreshToken(req, res) {
   try {
-    let rf_token = req.cookies.refreshtoken;
-    if (rf_token)
-      rf_token = rf_token = req.cookies.refreshtoken.replace(/^JWT\s/, "");
-    if (!rf_token)
-      return res.status(400).json({ msg: "Please Login or Register" });
+    return await refreshFromCookie(req, res);
+  } catch (err) {
+    return sendServerError(res, err, logger);
+  }
+}
 
-    jwt.verify(rf_token, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-      if (err)
-        return res
-          .status(400)
-          .json({ msg: "Please Verify Info & Login or Register" });
-
-      const accesstoken = createAccessToken({ id: user.id });
-
-      res.json({ accesstoken });
-    });
+// POST /auth/refresh for clients that hold the refresh token themselves (mobile).
+async function refresh(req, res) {
+  try {
+    return await refreshFromBody(req, res);
   } catch (err) {
     return sendServerError(res, err, logger);
   }
@@ -183,17 +172,9 @@ async function login(req, res) {
       });
     }
 
-    const accesstoken = createAccessToken({ id: user._id });
-    const refreshtoken = createRefreshToken({ id: user._id });
-
-    if (rememberMe) {
-      // Only set cookies if user checks remember me
-      res.cookie("refreshtoken", refreshtoken, {
-        httpOnly: true,
-        path: "/api/auth/refresh_token",
-        maxAge: 7 * 25 * 60 * 60 * 1000,
-      });
-    }
+    // The refresh cookie is only set when the user checks remember me.
+    const session = await startSession(req, res, user._id, { setCookie: Boolean(rememberMe) });
+    const { accesstoken } = session;
     res.cookie("accesstoken", accesstoken, {
       maxAge: 7 * 25 * 60 * 60 * 1000,
       path: "/api/auth/login",
@@ -203,14 +184,14 @@ async function login(req, res) {
     // Different response for pending users
     if (user.status === "PENDING") {
       return res.json({ 
-        accesstoken, 
+        ...session, 
         status: "PENDING",
         msg: "Login successful. Your account is pending approval - limited access.",
         limitedAccess: true
       });
     }
 
-    res.json({ accesstoken, status: "Successful"});
+    res.json({ ...session, status: "Successful"});
   } catch (err) {
     return sendServerError(res, err, logger);
   }
@@ -218,8 +199,7 @@ async function login(req, res) {
 
 async function logout(req, res) {
   try {
-    res.clearCookie("refreshtoken", { path: "/api/auth/refresh_token" });
-    return res.json({ msg: "Logged Out", status: "Successful"});
+    return await endSession(req, res);
   } catch (err) {
     return sendServerError(res, err, logger);
   }
@@ -674,6 +654,9 @@ async function resetPassword(req, res) {
     user.resetPasswordExpires = null;
     await user.save();
 
+    // Whoever knew the old password may hold a session; end them all.
+    await revokeAllForUser(user._id);
+
     logger.info(`Password successfully reset for user: ${user.email}`);
     
     res.json({ 
@@ -689,6 +672,7 @@ async function resetPassword(req, res) {
 const userCtrl =  {
   register,
   refreshToken,
+  refresh,
   login,
   logout,
   updateProfile,
