@@ -9,6 +9,7 @@ import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.
 import { REGISTRATION_ROLE, resolveRegistrationStatus } from "../utils/registration.js";
 
 import { sendServerError } from "../utils/serverError.js";
+import { verifyCredentials, INVALID_CREDENTIALS } from "../utils/credentials.js";
 const logger = new Logger("users");
 
 async function register(req, res) {
@@ -158,19 +159,21 @@ async function login(req, res) {
   try {
     const { email, password, rememberMe } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: "User does not exist." });
+    // A non-string email (e.g. {"$regex": "^a"}) would become a query operator.
+    const user = typeof email === "string" ? await User.findOne({ email }) : null;
 
-    // Check user status
+    // One bcrypt comparison and one message for every failure, so neither the
+    // response nor its timing reveals whether the email has an account.
+    const isMatch = await verifyCredentials(user, password);
+    if (!isMatch) return res.status(400).json({ msg: INVALID_CREDENTIALS });
+
+    // Only someone holding the password learns the account was denied.
     if (user.status === "DENIED") {
       return res.status(403).json({ 
         msg: "Your account registration has been denied. Please contact support.",
         status: "DENIED"
       });
     }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: "Invalid password" });
 
     const accesstoken = createAccessToken({ id: user._id });
     const refreshtoken = createRefreshToken({ id: user._id });
