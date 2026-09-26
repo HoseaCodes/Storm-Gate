@@ -9,6 +9,27 @@ import bcrypt from 'bcrypt';
 
 export const INVALID_CREDENTIALS = 'Invalid email or password';
 
+// Rules for a password being set (sign-up or reset). Existing passwords are not
+// re-checked at login, so raising the minimum locks nobody out.
+export const PASSWORD_MIN_LENGTH = 8;
+// bcrypt only reads the first 72 bytes and ignores the rest, so a longer
+// password would silently be as strong as its first 72 bytes.
+export const PASSWORD_MAX_BYTES = 72;
+
+/** An error message for an unacceptable new password, or null if it is fine. */
+export function validateNewPassword(password) {
+  if (typeof password !== 'string' || !password) {
+    return 'Password is required';
+  }
+  if ([...password].length < PASSWORD_MIN_LENGTH) {
+    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters long`;
+  }
+  if (Buffer.byteLength(password, 'utf8') > PASSWORD_MAX_BYTES) {
+    return `Password must be at most ${PASSWORD_MAX_BYTES} bytes long`;
+  }
+  return null;
+}
+
 // Same cost factor as registration (bcrypt.hash(password, 10)), so a comparison
 // against it takes as long as one against a real stored hash.
 const TIMING_COST = 10;

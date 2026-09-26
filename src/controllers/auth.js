@@ -9,7 +9,7 @@ import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.
 import { REGISTRATION_ROLE, resolveRegistrationStatus } from "../utils/registration.js";
 
 import { sendServerError } from "../utils/serverError.js";
-import { verifyCredentials, INVALID_CREDENTIALS } from "../utils/credentials.js";
+import { verifyCredentials, validateNewPassword, INVALID_CREDENTIALS } from "../utils/credentials.js";
 const logger = new Logger("users");
 
 async function register(req, res) {
@@ -18,6 +18,16 @@ async function register(req, res) {
     let { name, email, username, password, application, status: requestedStatus } = req.body;
     if (req.body.role !== undefined) {
       logger.info(`Ignored client-supplied role on registration for ${application || 'default'} application`);
+    }
+
+    // Non-string values (e.g. {"$ne": null}) would become query operators.
+    if (typeof email !== "string" || !email || (username !== undefined && typeof username !== "string")) {
+      return res.status(400).json({ msg: "A valid email is required" });
+    }
+
+    const passwordError = validateNewPassword(password);
+    if (passwordError) {
+      return res.status(400).json({ msg: passwordError });
     }
 
     const existingUser = await User.findOne({
@@ -34,11 +44,6 @@ async function register(req, res) {
         .status(409)
         .json({ message: `${existingUser.email === email ? 'Email' : 'Username'} already exists` });
     }
-
-    if (password.length < 6)
-      return res
-        .status(401)
-        .json({ msg: "Password is at least 6 characters long" });
 
     //Password Encryption
     const passwordHash = await bcrypt.hash(password, 10);
@@ -254,7 +259,7 @@ async function requestPasswordReset(req, res) {
   try {
     const { email } = req.body;
     
-    if (!email) {
+    if (typeof email !== "string" || !email) {
       return res.status(400).json({ msg: "Email is required" });
     }
 
@@ -365,12 +370,9 @@ async function resetPassword(req, res) {
       return res.status(400).json({ msg: "Reset token is required" });
     }
 
-    if (!password) {
-      return res.status(400).json({ msg: "New password is required" });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ msg: "Password must be at least 6 characters long" });
+    const passwordError = validateNewPassword(password);
+    if (passwordError) {
+      return res.status(400).json({ msg: passwordError });
     }
 
     // Hash the token from params to compare with stored hash
