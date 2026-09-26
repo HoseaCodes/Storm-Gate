@@ -6,15 +6,18 @@ import jwt from "jsonwebtoken";
 import { createAccessToken, createRefreshToken } from "../utils/auth.js";
 import BlogUser from "../models/blogUser.js";
 import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
+import { REGISTRATION_ROLE, resolveRegistrationStatus } from "../utils/registration.js";
 
 const logger = new Logger("users");
 
 async function register(req, res) {
   try {
-    let { name, email, username, password, role, application, status } = req.body;
-    // User is role 0
-    // Admin is role 1
-    
+    // role and status are server-decided; see utils/registration.js.
+    let { name, email, username, password, application, status: requestedStatus } = req.body;
+    if (req.body.role !== undefined) {
+      logger.info(`Ignored client-supplied role on registration for ${application || 'default'} application`);
+    }
+
     const existingUser = await User.findOne({
       $or: [
         { email }, 
@@ -38,11 +41,7 @@ async function register(req, res) {
     //Password Encryption
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Determine user status
-    let userStatus = status || "APPROVED"; // Default to APPROVED for backward compatibility
-    if (status && status === "PENDING") {
-      userStatus = "PENDING";
-    }
+    const userStatus = resolveRegistrationStatus({ application, requestedStatus });
 
     const createNewUser = async (application) => {
       const userData = {
@@ -50,7 +49,7 @@ async function register(req, res) {
         email,
         password: passwordHash,
         application,
-        role: role || "basic",
+        role: REGISTRATION_ROLE,
         status: userStatus
       };
 
