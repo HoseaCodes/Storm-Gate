@@ -6,6 +6,7 @@ import {
 	getPublicKeyByKid,
 	signAccessToken,
 } from './signingKeys.js';
+import { sendServerError } from "./serverError.js";
 
 const auth = (req, res, next) => {
 	try {
@@ -82,7 +83,7 @@ const auth = (req, res, next) => {
 			next();
 		});
 	} catch (err) {
-		return res.status(500).json({ msg: err.message });
+		return sendServerError(res, err, null);
 	}
 };
 

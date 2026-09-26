@@ -20,6 +20,7 @@ import userController from './controllers/user.js';
 import auth from './utils/auth.js';
 import isAdmin from './utils/authAdmin.js';
 import { verifyJWT } from './utils/auth.js';
+import { authLimits } from './utils/rateLimit.js';
 
 dotenv.config();
 
@@ -77,7 +78,7 @@ app.get("/health", (req, res) => {
 // app.get('/api/auth/refresh_token', userController.refreshToken);
 // app.post('/register', userController.register);
 // app.post('/login', userController.login);
-app.post('/check-status', userController.checkUserStatus);
+app.post('/check-status', authLimits.checkStatus, userController.checkUserStatus);
 // app.post('/reset-password/:token', userController.resetPassword);
 // app.post('/forgot-password', userController.requestPasswordReset);
 // app.post('/verify-reset-token/:token', userController.verifyResetToken);

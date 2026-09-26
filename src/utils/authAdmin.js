@@ -1,5 +1,6 @@
 import Users from "../models/user.js";
 
+import { sendServerError } from "./serverError.js";
 const isAdmin = async (req, res, next) => {
     try {
       const user = await Users.find({
@@ -10,7 +11,7 @@ const isAdmin = async (req, res, next) => {
             return res.status(401).json({ msg: "Not allowed: You don't have enough permission to perform this action" })
         next()
     } catch (err) {
-        return res.status(500).json({ msg: err.message })
+        return sendServerError(res, err, null);
 
     }
 }

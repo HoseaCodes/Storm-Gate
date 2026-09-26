@@ -21,6 +21,7 @@ import oauthRouter, { userRouter as oauthUserRouter } from './routes/oauth.js';
 import extAuthRouter from './routes/ext-auth.js';
 import { ensureOAuthIndexes } from './utils/ensureOAuthIndexes.js';
 import serverless from 'serverless-http';
+import { authLimits } from './utils/rateLimit.js';
 
 // Load environment variables
 dotenv.config();
@@ -235,12 +236,12 @@ const verifyJWT = async (req, res, next) => {
 app.use('/auth', authRouter);
 
 // Public endpoints (no JWT required)
-app.post('/register', userController.register);
-app.post('/login', userController.login);
-app.post('/check-status', userController.checkUserStatus);
-app.post('/reset-password/:token', userController.resetPassword);
-app.post('/forgot-password', userController.requestPasswordReset);
-app.post('/verify-reset-token/:token', userController.verifyResetToken);
+app.post('/register', authLimits.register, userController.register);
+app.post('/login', authLimits.login, userController.login);
+app.post('/check-status', authLimits.checkStatus, userController.checkUserStatus);
+app.post('/reset-password/:token', authLimits.resetPassword, userController.resetPassword);
+app.post('/forgot-password', authLimits.forgotPassword, userController.requestPasswordReset);
+app.post('/verify-reset-token/:token', authLimits.resetPassword, userController.verifyResetToken);
 
 // Protected endpoints (JWT required)
 app.get('/me', auth, userController.getMe);

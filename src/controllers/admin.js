@@ -3,6 +3,7 @@ import Logger from "../utils/logger-lambda.js";
 import { cache } from "../utils/cache.js";
 import UnregisteredUser from "../models/unregisteredUser.js";
 
+import { sendServerError } from "../utils/serverError.js";
 const logger = new Logger("users");
 
 async function getUserById(req, res) {
@@ -30,7 +31,7 @@ async function getUserById(req, res) {
       location: "main",
     });
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -64,7 +65,7 @@ async function getAllUsers(req, res) {
   } catch (err) {
     logger.error(err);
 
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 

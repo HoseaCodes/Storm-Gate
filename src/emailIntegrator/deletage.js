@@ -11,7 +11,10 @@ class EmailDelegate {
 
   async sendEmail(emailData) {
     try {
-      const response = await axios.post(`${EMAIL_INTEGRATOR_BASE_URL}/auth/send-email`, emailData);
+      const response = await axios.post(`${integratorBaseUrl()}/auth/send-email`, emailData, {
+        headers: integratorHeaders(),
+        timeout: 10000,
+      });
       
       // Return success result with proper structure
       return {
@@ -161,6 +164,19 @@ class EmailDelegate {
   }
 
   /**
+   * Send a 6-digit email verification code.
+   * Requires the integrator's 'email-verification' template type.
+   * @param {Object} userData - { email, name, code, expiryTime?, appName?, appDisplayName? }
+   * @returns {Promise<Object>} Result object
+   */
+  async sendEmailVerification(userData) {
+    return await this.sendTemplateEmail({
+      ...userData,
+      templateType: 'email-verification'
+    });
+  }
+
+  /**
    * Get template configuration information
    * @returns {Object} Template configuration details
    */
@@ -220,7 +236,23 @@ export const {
   getTemplateInfo
 } = emailDelegate;
 
-const EMAIL_INTEGRATOR_BASE_URL =
-  process.env.NODE_ENV === 'production'
+// The integrator started requiring an X-API-Key header on /auth/send-email
+// (deployed 2026-09-25). Storm Gate sent none, so every email since then --
+// approval requests, pending notices, password resets -- was rejected with 401
+// while callers still reported success to the user.
+export function integratorHeaders() {
+  const key = process.env.EMAIL_INTEGRATOR_API_KEY;
+  if (!key) {
+    logger.error('EMAIL_INTEGRATOR_API_KEY is not set; the email integrator will reject this request');
+    return {};
+  }
+  return { 'X-API-Key': key };
+}
+
+// EMAIL_INTEGRATOR_BASE_URL was already configured on the Lambda but ignored.
+export function integratorBaseUrl() {
+  if (process.env.EMAIL_INTEGRATOR_BASE_URL) return process.env.EMAIL_INTEGRATOR_BASE_URL.replace(/\/+$/, '');
+  return process.env.NODE_ENV === 'production'
     ? 'http://email-integrator-prod.eba-p4bnt2xm.us-east-1.elasticbeanstalk.com'
     : 'http://localhost:8082';
+}

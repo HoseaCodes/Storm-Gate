@@ -5,19 +5,36 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { cache } from "../utils/cache.js";
-import { createAccessToken, createRefreshToken } from "../utils/auth.js";
+import { startSession, refreshFromCookie, refreshFromBody, endSession } from "../utils/session.js";
+import { revokeAllForUser } from "../utils/sessionRefreshStore.js";
 import BlogUser from "../models/blogUser.js";
 import UnregisteredUser from "../models/unregisteredUser.js";
-import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
+import { sendApprovalEmail, sendRegistrationPendingEmail, sendVerificationCodeEmail } from "../utils/email.js";
+import { CODE_TTL_LABEL, isEmailVerified, markEmailVerified, newVerificationCode } from "../utils/emailVerification.js";
+import { REGISTRATION_ROLE, resolveRegistrationStatus, stripProtectedUserFields } from "../utils/registration.js";
 
+import { sendServerError } from "../utils/serverError.js";
+import { verifyCredentials, validateNewPassword, INVALID_CREDENTIALS } from "../utils/credentials.js";
 const logger = new Logger("users");
 
 async function register(req, res) {
   try {
-    let { name, email, username, password, role, application, status } = req.body;
-    // User is role 0
-    // Admin is role 1
-    
+    // role and status are server-decided; see utils/registration.js.
+    let { name, email, username, password, application, status: requestedStatus } = req.body;
+    if (req.body.role !== undefined) {
+      logger.info(`Ignored client-supplied role on registration for ${application || 'default'} application`);
+    }
+
+    // Non-string values (e.g. {"$ne": null}) would become query operators.
+    if (typeof email !== "string" || !email || (username !== undefined && typeof username !== "string")) {
+      return res.status(400).json({ msg: "A valid email is required" });
+    }
+
+    const passwordError = validateNewPassword(password);
+    if (passwordError) {
+      return res.status(400).json({ msg: passwordError });
+    }
+
     const existingUser = await User.findOne({
       $or: [
         { email }, 
@@ -33,19 +50,12 @@ async function register(req, res) {
         .json({ message: `${existingUser.email === email ? 'Email' : 'Username'} already exists` });
     }
 
-    if (password.length < 6)
-      return res
-        .status(401)
-        .json({ msg: "Password is at least 6 characters long" });
-
     //Password Encryption
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Determine user status
-    let userStatus = status || "APPROVED"; // Default to APPROVED for backward compatibility
-    if (status && status === "PENDING") {
-      userStatus = "PENDING";
-    }
+    const userStatus = resolveRegistrationStatus({ application, requestedStatus });
+    // New accounts start unverified; see utils/emailVerification.js.
+    const verification = newVerificationCode();
 
     const createNewUser = async (application) => {
       const userData = {
@@ -53,8 +63,9 @@ async function register(req, res) {
         email,
         password: passwordHash,
         application,
-        role: role || "basic",
-        status: userStatus
+        role: REGISTRATION_ROLE,
+        status: userStatus,
+        ...verification.fields
       };
 
       switch (application) {
@@ -81,6 +92,9 @@ async function register(req, res) {
     if (!savedUser) {
       return res.status(500).json({ msg: "Failed to create user" });
     }
+
+    // A failed send is logged, not fatal: the user can ask for a new code.
+    await sendVerificationCodeEmail({ email, name, code: verification.code, expiryTime: CODE_TTL_LABEL });
 
     // Handle pending approval workflow
     if (userStatus === "PENDING") {
@@ -113,47 +127,36 @@ async function register(req, res) {
       return res.status(201).json({ 
         msg: "Registration successful. Your account is pending approval.",
         status: "PENDING",
-        requiresApproval: true
+        requiresApproval: true,
+        emailVerificationRequired: true
       });
     }
 
     // For approved users, create tokens and proceed normally
-    const accesstoken = createAccessToken({ id: savedUser._id });
-    const refreshtoken = createRefreshToken({ id: savedUser._id });
+    const session = await startSession(req, res, savedUser._id, { setCookie: true });
 
-    res.cookie("refreshtoken", refreshtoken, {
-      httpOnly: true,
-      path: "/api/auth/refresh_token",
-      maxAge: 7 * 25 * 60 * 60 * 1000,
-    });
-
-    res.json({ accesstoken, status: "Successful" });
+    res.json({ ...session, status: "Successful", emailVerified: false, emailVerificationRequired: true });
   } catch (err) {
     logger.error('Registration error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
-function refreshToken(req, res) {
+// Refresh tokens are stored and rotated; see utils/session.js.
+async function refreshToken(req, res) {
   try {
-    let rf_token = req.cookies.refreshtoken;
-    if (rf_token)
-      rf_token = rf_token = req.cookies.refreshtoken.replace(/^JWT\s/, "");
-    if (!rf_token)
-      return res.status(400).json({ msg: "Please Login or Register" });
-
-    jwt.verify(rf_token, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-      if (err)
-        return res
-          .status(400)
-          .json({ msg: "Please Verify Info & Login or Register" });
-
-      const accesstoken = createAccessToken({ id: user.id });
-
-      res.json({ accesstoken });
-    });
+    return await refreshFromCookie(req, res);
   } catch (err) {
-    return res.status(500).json({ msg: err.message, err: err });
+    return sendServerError(res, err, logger);
+  }
+}
+
+// POST /auth/refresh for clients that hold the refresh token themselves (mobile).
+async function refresh(req, res) {
+  try {
+    return await refreshFromBody(req, res);
+  } catch (err) {
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -161,10 +164,15 @@ async function login(req, res) {
   try {
     const { email, password, rememberMe } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: "User does not exist." });
+    // A non-string email (e.g. {"$regex": "^a"}) would become a query operator.
+    const user = typeof email === "string" ? await User.findOne({ email }) : null;
 
-    // Check user status
+    // One bcrypt comparison and one message for every failure, so neither the
+    // response nor its timing reveals whether the email has an account.
+    const isMatch = await verifyCredentials(user, password);
+    if (!isMatch) return res.status(400).json({ msg: INVALID_CREDENTIALS });
+
+    // Only someone holding the password learns the account was denied.
     if (user.status === "DENIED") {
       return res.status(403).json({ 
         msg: "Your account registration has been denied. Please contact support.",
@@ -172,20 +180,9 @@ async function login(req, res) {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: "Invalid password" });
-
-    const accesstoken = createAccessToken({ id: user._id });
-    const refreshtoken = createRefreshToken({ id: user._id });
-
-    if (rememberMe) {
-      // Only set cookies if user checks remember me
-      res.cookie("refreshtoken", refreshtoken, {
-        httpOnly: true,
-        path: "/api/auth/refresh_token",
-        maxAge: 7 * 25 * 60 * 60 * 1000,
-      });
-    }
+    // The refresh cookie is only set when the user checks remember me.
+    const session = await startSession(req, res, user._id, { setCookie: Boolean(rememberMe) });
+    const { accesstoken } = session;
     res.cookie("accesstoken", accesstoken, {
       maxAge: 7 * 25 * 60 * 60 * 1000,
       path: "/api/auth/login",
@@ -195,25 +192,25 @@ async function login(req, res) {
     // Different response for pending users
     if (user.status === "PENDING") {
       return res.json({ 
-        accesstoken, 
+        ...session, 
         status: "PENDING",
+        emailVerified: isEmailVerified(user),
         msg: "Login successful. Your account is pending approval - limited access.",
         limitedAccess: true
       });
     }
 
-    res.json({ accesstoken, status: "Successful"});
+    res.json({ ...session, status: "Successful", emailVerified: isEmailVerified(user) });
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
 async function logout(req, res) {
   try {
-    res.clearCookie("refreshtoken", { path: "/api/auth/refresh_token" });
-    return res.json({ msg: "Logged Out", status: "Successful"});
+    return await endSession(req, res);
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -235,7 +232,7 @@ async function logout(req, res) {
 
 //     return res.json({ msg: "Added to cart" });
 //   } catch (err) {
-//     return res.status(500).json({ msg: err.message });
+//     return sendServerError(res, err, logger);
 //   }
 // }
 
@@ -259,7 +256,7 @@ async function logout(req, res) {
 //       location: "main",
 //     });
 //   } catch (err) {
-//     return res.status(500).json({ msg: err.message });
+//     return sendServerError(res, err, logger);
 //   }
 // }
 
@@ -272,7 +269,10 @@ async function updateProfile(req, res) {
       likedArticles,
     } = req.body;
 
-    const originalBody = req.body;
+    const { allowed: originalBody, removed } = stripProtectedUserFields(req.body);
+    if (removed.length) {
+      logger.info(`Ignored protected fields on profile update: ${removed.join(', ')}`);
+    }
     const userId = req.params.id;
     const originalUser = await User.findOne({ _id: userId });
     // let granted = true;
@@ -350,7 +350,7 @@ async function updateProfile(req, res) {
   } catch (err) {
     logger.error(err);
     console.log(err.message);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -377,7 +377,7 @@ async function deleteProfile(req, res) {
   } catch (err) {
     logger.error(err);
 
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -394,7 +394,7 @@ async function addProfile(req, res) {
     return res.json({ data: newUser, msg: "Added Profile Successful", status: "Successful"});
   } catch (err) {
     console.log(err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -405,7 +405,8 @@ async function addUser(req, res) {
     await newUser.save();
     res.status(201).json(newUser);
   } catch (error) {
-    res.status(409).json({ message: error.message });
+    logger.error('addUser failed', { message: error.message });
+    res.status(409).json({ message: 'Could not create user' });
   }
 }
 
@@ -414,7 +415,8 @@ async function getUserById(req, res) {
     const user = await User.findById(req.params.id);
     res.status(200).json(user);
   } catch (error) {
-    res.status(404).json({ message: error.message });
+    logger.error('getUserById failed', { message: error.message });
+    res.status(404).json({ message: 'User not found' });
   }
 }
 
@@ -425,7 +427,8 @@ async function editUser(req, res) {
     await User.updateOne({ _id: req.params.id }, editUser);
     res.status(201).json(editUser);
   } catch (error) {
-    res.status(409).json({ message: error.message });
+    logger.error('editUser failed', { message: error.message });
+    res.status(409).json({ message: 'Could not update user' });
   }
 }
 
@@ -434,7 +437,8 @@ async function deleteUser(req, res) {
     await User.deleteOne({ _id: req.params.id });
     res.status(201).json("User deleted Successfully");
   } catch (error) {
-    res.status(409).json({ message: error.message });
+    logger.error('deleteUser failed', { message: error.message });
+    res.status(409).json({ message: 'Could not delete user' });
   }
 }
 
@@ -463,13 +467,17 @@ async function getMe(req, res) {
         username: user.username,
         role: user.role,
         status: user.status || "APPROVED", // Default to APPROVED for backward compatibility
+        emailVerified: isEmailVerified(user),
+        // Which application the account was created for, so a consuming app
+        // can refuse accounts that belong to another one.
+        application: user.application ?? null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
     });
   } catch (err) {
     logger.error('Get me error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -477,12 +485,15 @@ async function checkUserStatus(req, res) {
   try {
     const { email } = req.body;
     
-    if (!email) {
+    if (typeof email !== "string" || !email) {
       return res.status(400).json({ msg: "Email is required" });
     }
 
-    const user = await User.findOne({ email }).select('email name status createdAt');
-    
+    // Public and unauthenticated, so it answers only what a pending-approval
+    // page needs. It used to return the account holder's name and sign-up date
+    // for any email.
+    const user = await User.findOne({ email }).select('email status');
+
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
@@ -491,14 +502,11 @@ async function checkUserStatus(req, res) {
       status: "success",
       user: {
         email: user.email,
-        name: user.name,
-        status: user.status || "APPROVED",
-        registeredAt: user.createdAt
+        status: user.status || "APPROVED"
       }
     });
   } catch (err) {
-    logger.error('Check user status error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger, 'Check user status error');
   }
 }
 
@@ -510,7 +518,7 @@ async function requestPasswordReset(req, res) {
   try {
     const { email } = req.body;
     
-    if (!email) {
+    if (typeof email !== "string" || !email) {
       return res.status(400).json({ msg: "Email is required" });
     }
 
@@ -621,12 +629,9 @@ async function resetPassword(req, res) {
       return res.status(400).json({ msg: "Reset token is required" });
     }
 
-    if (!password) {
-      return res.status(400).json({ msg: "New password is required" });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ msg: "Password must be at least 6 characters long" });
+    const passwordError = validateNewPassword(password);
+    if (passwordError) {
+      return res.status(400).json({ msg: passwordError });
     }
 
     // Hash the token from params to compare with stored hash
@@ -657,7 +662,12 @@ async function resetPassword(req, res) {
     user.password = passwordHash;
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
+    // Receiving the reset email proves the user owns the address.
+    if (!isEmailVerified(user)) markEmailVerified(user);
     await user.save();
+
+    // Whoever knew the old password may hold a session; end them all.
+    await revokeAllForUser(user._id);
 
     logger.info(`Password successfully reset for user: ${user.email}`);
     
@@ -674,6 +684,7 @@ async function resetPassword(req, res) {
 const userCtrl =  {
   register,
   refreshToken,
+  refresh,
   login,
   logout,
   updateProfile,
