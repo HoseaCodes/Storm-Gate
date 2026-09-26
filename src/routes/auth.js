@@ -1,6 +1,7 @@
 import express from 'express';
 import authCtrl from '../controllers/auth.js';
 import { guestLogin, getGuestUser } from '../controllers/guest.js';
+import { authLimits } from "../utils/rateLimit.js";
 const router = express.Router();
 
 /**
@@ -58,10 +59,10 @@ const router = express.Router();
  *       500:
  *         description: Internal Server Error
  */
-router.post("/register", authCtrl.register);
+router.post("/register", authLimits.register, authCtrl.register);
 
 // Guest login endpoint
-router.post("/guest-login", guestLogin);
+router.post("/guest-login", authLimits.guestLogin, guestLogin);
 
 // Get guest user by id
 router.get("/guest/:id", getGuestUser);
@@ -108,7 +109,7 @@ router.get("/guest/:id", getGuestUser);
  *       500:
  *         description: Internal Server Error
  */
-router.post("/login", authCtrl.login);
+router.post("/login", authLimits.login, authCtrl.login);
 
 /**
  * @swagger
@@ -160,7 +161,7 @@ router.post("/logout", authCtrl.logout);
  *       500:
  *         description: Internal Server Error
  */
-router.get("/refresh_token", authCtrl.refreshToken);
+router.get("/refresh_token", authLimits.refresh, authCtrl.refreshToken);
 
 /**
  * @swagger
@@ -185,7 +186,7 @@ router.get("/refresh_token", authCtrl.refreshToken);
  *       401:
  *         description: Invalid, expired or reused refresh token
  */
-router.post("/refresh", authCtrl.refresh);
+router.post("/refresh", authLimits.refresh, authCtrl.refresh);
 
 /**
  * @swagger
@@ -226,7 +227,7 @@ router.post("/refresh", authCtrl.refresh);
  *       500:
  *         description: Internal Server Error
  */
-router.post("/forgot-password", authCtrl.requestPasswordReset);
+router.post("/forgot-password", authLimits.forgotPassword, authCtrl.requestPasswordReset);
 
 /**
  * @swagger
@@ -307,7 +308,7 @@ router.post("/forgot-password", authCtrl.requestPasswordReset);
  *       500:
  *         description: Internal Server Error
  */
-router.post("/verify-reset-token/:token", authCtrl.verifyResetToken);
+router.post("/verify-reset-token/:token", authLimits.resetPassword, authCtrl.verifyResetToken);
 
 /**
  * @swagger
@@ -356,6 +357,6 @@ router.post("/verify-reset-token/:token", authCtrl.verifyResetToken);
  *       500:
  *         description: Internal Server Error
  */ 
-router.post("/reset-password/:token", authCtrl.resetPassword);
+router.post("/reset-password/:token", authLimits.resetPassword, authCtrl.resetPassword);
 
 export default router;
