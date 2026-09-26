@@ -8,6 +8,7 @@ import BlogUser from "../models/blogUser.js";
 import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
 import { REGISTRATION_ROLE, resolveRegistrationStatus } from "../utils/registration.js";
 
+import { sendServerError } from "../utils/serverError.js";
 const logger = new Logger("users");
 
 async function register(req, res) {
@@ -126,7 +127,7 @@ async function register(req, res) {
     res.json({ accesstoken, status: "Successful" });
   } catch (err) {
     logger.error('Registration error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -149,7 +150,7 @@ function refreshToken(req, res) {
       res.json({ accesstoken });
     });
   } catch (err) {
-    return res.status(500).json({ msg: err.message, err: err });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -200,7 +201,7 @@ async function login(req, res) {
 
     res.json({ accesstoken, status: "Successful"});
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -209,7 +210,7 @@ async function logout(req, res) {
     res.clearCookie("refreshtoken", { path: "/api/auth/refresh_token" });
     return res.json({ msg: "Logged Out", status: "Successful"});
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -238,7 +239,7 @@ async function checkUserStatus(req, res) {
     });
   } catch (err) {
     logger.error('Check user status error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 

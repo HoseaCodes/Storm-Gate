@@ -11,6 +11,7 @@ import UnregisteredUser from "../models/unregisteredUser.js";
 import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
 import { REGISTRATION_ROLE, resolveRegistrationStatus, stripProtectedUserFields } from "../utils/registration.js";
 
+import { sendServerError } from "../utils/serverError.js";
 const logger = new Logger("users");
 
 async function register(req, res) {
@@ -129,7 +130,7 @@ async function register(req, res) {
     res.json({ accesstoken, status: "Successful" });
   } catch (err) {
     logger.error('Registration error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -152,7 +153,7 @@ function refreshToken(req, res) {
       res.json({ accesstoken });
     });
   } catch (err) {
-    return res.status(500).json({ msg: err.message, err: err });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -203,7 +204,7 @@ async function login(req, res) {
 
     res.json({ accesstoken, status: "Successful"});
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -212,7 +213,7 @@ async function logout(req, res) {
     res.clearCookie("refreshtoken", { path: "/api/auth/refresh_token" });
     return res.json({ msg: "Logged Out", status: "Successful"});
   } catch (err) {
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -234,7 +235,7 @@ async function logout(req, res) {
 
 //     return res.json({ msg: "Added to cart" });
 //   } catch (err) {
-//     return res.status(500).json({ msg: err.message });
+//     return sendServerError(res, err, logger);
 //   }
 // }
 
@@ -258,7 +259,7 @@ async function logout(req, res) {
 //       location: "main",
 //     });
 //   } catch (err) {
-//     return res.status(500).json({ msg: err.message });
+//     return sendServerError(res, err, logger);
 //   }
 // }
 
@@ -352,7 +353,7 @@ async function updateProfile(req, res) {
   } catch (err) {
     logger.error(err);
     console.log(err.message);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -379,7 +380,7 @@ async function deleteProfile(req, res) {
   } catch (err) {
     logger.error(err);
 
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -396,7 +397,7 @@ async function addProfile(req, res) {
     return res.json({ data: newUser, msg: "Added Profile Successful", status: "Successful"});
   } catch (err) {
     console.log(err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -407,7 +408,8 @@ async function addUser(req, res) {
     await newUser.save();
     res.status(201).json(newUser);
   } catch (error) {
-    res.status(409).json({ message: error.message });
+    logger.error('addUser failed', { message: error.message });
+    res.status(409).json({ message: 'Could not create user' });
   }
 }
 
@@ -416,7 +418,8 @@ async function getUserById(req, res) {
     const user = await User.findById(req.params.id);
     res.status(200).json(user);
   } catch (error) {
-    res.status(404).json({ message: error.message });
+    logger.error('getUserById failed', { message: error.message });
+    res.status(404).json({ message: 'User not found' });
   }
 }
 
@@ -427,7 +430,8 @@ async function editUser(req, res) {
     await User.updateOne({ _id: req.params.id }, editUser);
     res.status(201).json(editUser);
   } catch (error) {
-    res.status(409).json({ message: error.message });
+    logger.error('editUser failed', { message: error.message });
+    res.status(409).json({ message: 'Could not update user' });
   }
 }
 
@@ -436,7 +440,8 @@ async function deleteUser(req, res) {
     await User.deleteOne({ _id: req.params.id });
     res.status(201).json("User deleted Successfully");
   } catch (error) {
-    res.status(409).json({ message: error.message });
+    logger.error('deleteUser failed', { message: error.message });
+    res.status(409).json({ message: 'Could not delete user' });
   }
 }
 
@@ -471,7 +476,7 @@ async function getMe(req, res) {
     });
   } catch (err) {
     logger.error('Get me error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 
@@ -500,7 +505,7 @@ async function checkUserStatus(req, res) {
     });
   } catch (err) {
     logger.error('Check user status error:', err);
-    return res.status(500).json({ msg: err.message });
+    return sendServerError(res, err, logger);
   }
 }
 

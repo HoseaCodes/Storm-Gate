@@ -84,9 +84,8 @@ async function initiateLogin(req, res) {
     res.redirect(authUrl.href);
   } catch (error) {
     logger.error('Login initiation failed:', error);
-    res.status(500).json({ 
-      error: 'Authentication service unavailable',
-      message: error.message 
+    res.status(500).json({
+      error: 'Authentication service unavailable'
     });
   }
 }
@@ -201,9 +200,8 @@ async function handleCallback(req, res) {
     logger.error('Callback handling failed:', error);
     await discardAuthSession(req.query.state); // Clean up on error
     
-    res.status(500).json({ 
-      error: 'Authentication processing failed',
-      message: error.message 
+    res.status(500).json({
+      error: 'Authentication processing failed'
     });
   }
 }
