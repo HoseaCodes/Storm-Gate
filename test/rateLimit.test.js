@@ -149,6 +149,8 @@ describe('route wiring', () => {
     'router.post("/guest-login", authLimits.guestLogin,',
     'router.get("/refresh_token", authLimits.refresh,',
     'router.post("/refresh", authLimits.refresh,',
+    'router.post("/verify-email", authLimits.verifyEmail,',
+    'router.post("/resend-verification", authLimits.resendVerification,',
   ])('limits %s', (route) => {
     expect(authRoutes).toContain(route);
   });

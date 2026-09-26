@@ -16,6 +16,7 @@ vi.mock('../src/utils/sessionRefreshStore.js', () => ({
   rotateRefreshToken: vi.fn(async () => { throw new Error(INTERNAL); }),
 }));
 vi.mock('../src/utils/email.js', () => ({
+  sendVerificationCodeEmail: vi.fn(async () => true),
   sendApprovalEmail: vi.fn(),
   sendRegistrationPendingEmail: vi.fn(),
   sendPasswordResetEmail: vi.fn(),

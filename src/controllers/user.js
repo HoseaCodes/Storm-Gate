@@ -9,7 +9,8 @@ import { startSession, refreshFromCookie, refreshFromBody, endSession } from "..
 import { revokeAllForUser } from "../utils/sessionRefreshStore.js";
 import BlogUser from "../models/blogUser.js";
 import UnregisteredUser from "../models/unregisteredUser.js";
-import { sendApprovalEmail, sendRegistrationPendingEmail } from "../utils/email.js";
+import { sendApprovalEmail, sendRegistrationPendingEmail, sendVerificationCodeEmail } from "../utils/email.js";
+import { CODE_TTL_LABEL, isEmailVerified, markEmailVerified, newVerificationCode } from "../utils/emailVerification.js";
 import { REGISTRATION_ROLE, resolveRegistrationStatus, stripProtectedUserFields } from "../utils/registration.js";
 
 import { sendServerError } from "../utils/serverError.js";
@@ -53,6 +54,8 @@ async function register(req, res) {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const userStatus = resolveRegistrationStatus({ application, requestedStatus });
+    // New accounts start unverified; see utils/emailVerification.js.
+    const verification = newVerificationCode();
 
     const createNewUser = async (application) => {
       const userData = {
@@ -61,7 +64,8 @@ async function register(req, res) {
         password: passwordHash,
         application,
         role: REGISTRATION_ROLE,
-        status: userStatus
+        status: userStatus,
+        ...verification.fields
       };
 
       switch (application) {
@@ -88,6 +92,9 @@ async function register(req, res) {
     if (!savedUser) {
       return res.status(500).json({ msg: "Failed to create user" });
     }
+
+    // A failed send is logged, not fatal: the user can ask for a new code.
+    await sendVerificationCodeEmail({ email, name, code: verification.code, expiryTime: CODE_TTL_LABEL });
 
     // Handle pending approval workflow
     if (userStatus === "PENDING") {
@@ -120,14 +127,15 @@ async function register(req, res) {
       return res.status(201).json({ 
         msg: "Registration successful. Your account is pending approval.",
         status: "PENDING",
-        requiresApproval: true
+        requiresApproval: true,
+        emailVerificationRequired: true
       });
     }
 
     // For approved users, create tokens and proceed normally
     const session = await startSession(req, res, savedUser._id, { setCookie: true });
 
-    res.json({ ...session, status: "Successful" });
+    res.json({ ...session, status: "Successful", emailVerified: false, emailVerificationRequired: true });
   } catch (err) {
     logger.error('Registration error:', err);
     return sendServerError(res, err, logger);
@@ -186,12 +194,13 @@ async function login(req, res) {
       return res.json({ 
         ...session, 
         status: "PENDING",
+        emailVerified: isEmailVerified(user),
         msg: "Login successful. Your account is pending approval - limited access.",
         limitedAccess: true
       });
     }
 
-    res.json({ ...session, status: "Successful"});
+    res.json({ ...session, status: "Successful", emailVerified: isEmailVerified(user) });
   } catch (err) {
     return sendServerError(res, err, logger);
   }
@@ -458,6 +467,7 @@ async function getMe(req, res) {
         username: user.username,
         role: user.role,
         status: user.status || "APPROVED", // Default to APPROVED for backward compatibility
+        emailVerified: isEmailVerified(user),
         // Which application the account was created for, so a consuming app
         // can refuse accounts that belong to another one.
         application: user.application ?? null,
@@ -652,6 +662,8 @@ async function resetPassword(req, res) {
     user.password = passwordHash;
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
+    // Receiving the reset email proves the user owns the address.
+    if (!isEmailVerified(user)) markEmailVerified(user);
     await user.save();
 
     // Whoever knew the old password may hold a session; end them all.

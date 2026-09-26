@@ -30,6 +30,7 @@ vi.mock('../src/utils/sessionRefreshStore.js', () => ({
   revokeAllForUser: vi.fn(async () => 0),
 }));
 vi.mock('../src/utils/email.js', () => ({
+  sendVerificationCodeEmail: vi.fn(async () => true),
   sendPasswordResetEmail: (...args) => sendPasswordResetEmail(...args),
   sendApprovalEmail: vi.fn(),
   sendRegistrationPendingEmail: vi.fn(),

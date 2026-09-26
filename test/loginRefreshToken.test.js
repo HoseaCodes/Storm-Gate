@@ -9,6 +9,7 @@ vi.mock('../src/models/user.js', () => ({
 vi.mock('../src/models/blogUser.js', () => ({ default: class {} }));
 vi.mock('../src/models/unregisteredUser.js', () => ({ default: class {} }));
 vi.mock('../src/utils/email.js', () => ({
+  sendVerificationCodeEmail: vi.fn(async () => true),
   sendApprovalEmail: vi.fn(),
   sendRegistrationPendingEmail: vi.fn(),
   sendPasswordResetEmail: vi.fn(),
@@ -57,7 +58,7 @@ describe.each([
   it('keeps the old response for clients that do not ask for a refresh token', async () => {
     const res = await login();
 
-    expect(res.body).toEqual({ accesstoken: expect.any(String), status: 'Successful' });
+    expect(res.body).toEqual({ accesstoken: expect.any(String), status: 'Successful', emailVerified: true });
     expect(issueRefreshToken).not.toHaveBeenCalled();
     expect(res.cookies.refreshtoken).toBeUndefined();
   });

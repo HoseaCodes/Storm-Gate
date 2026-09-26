@@ -90,4 +90,13 @@ export const authLimits = {
   // Each call writes a guest record.
   guestLogin: rateLimit('guest-login', [{ scope: 'ip', limit: 30, windowMs: 60 * MINUTE }]),
   refresh: rateLimit('refresh', [{ scope: 'ip', limit: 120, windowMs: 15 * MINUTE }]),
+  // Each code also allows only 5 attempts; this caps guessing across new codes.
+  verifyEmail: rateLimit('verify-email', [
+    { scope: 'ip', limit: 30, windowMs: 15 * MINUTE },
+    { scope: 'email', limit: 10, windowMs: 15 * MINUTE },
+  ]),
+  resendVerification: rateLimit('resend-verification', [
+    { scope: 'ip', limit: 20, windowMs: 60 * MINUTE },
+    { scope: 'email', limit: 3, windowMs: 60 * MINUTE },
+  ]),
 };

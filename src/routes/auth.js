@@ -2,6 +2,7 @@ import express from 'express';
 import authCtrl from '../controllers/auth.js';
 import { guestLogin, getGuestUser } from '../controllers/guest.js';
 import { authLimits } from "../utils/rateLimit.js";
+import { verifyEmail, resendVerification } from "../controllers/emailVerification.js";
 const router = express.Router();
 
 /**
@@ -187,6 +188,52 @@ router.get("/refresh_token", authLimits.refresh, authCtrl.refreshToken);
  *         description: Invalid, expired or reused refresh token
  */
 router.post("/refresh", authLimits.refresh, authCtrl.refresh);
+
+/**
+ * @swagger
+ * /verify-email:
+ *   post:
+ *     summary: Confirm an email address with the 6-digit code sent at sign-up
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, code]
+ *             properties:
+ *               email: { type: string }
+ *               code: { type: string, example: "123456" }
+ *     responses:
+ *       200:
+ *         description: Email verified
+ *       400:
+ *         description: Invalid or expired verification code
+ */
+router.post("/verify-email", authLimits.verifyEmail, verifyEmail);
+
+/**
+ * @swagger
+ * /resend-verification:
+ *   post:
+ *     summary: Send a new verification code
+ *     description: Always answers the same way, whether or not the account exists or needs verification.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200:
+ *         description: Acknowledged
+ */
+router.post("/resend-verification", authLimits.resendVerification, resendVerification);
 
 /**
  * @swagger

@@ -10,6 +10,7 @@ vi.mock('../src/models/user.js', () => ({
 vi.mock('../src/models/blogUser.js', () => ({ default: class {} }));
 vi.mock('../src/models/unregisteredUser.js', () => ({ default: class {} }));
 vi.mock('../src/utils/email.js', () => ({
+  sendVerificationCodeEmail: vi.fn(async () => true),
   sendApprovalEmail: vi.fn(),
   sendRegistrationPendingEmail: vi.fn(),
   sendPasswordResetEmail: vi.fn(),
