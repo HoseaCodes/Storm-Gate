@@ -473,6 +473,9 @@ async function getMe(req, res) {
         username: user.username,
         role: user.role,
         status: user.status || "APPROVED", // Default to APPROVED for backward compatibility
+        // Which application the account was created for, so a consuming app
+        // can refuse accounts that belong to another one.
+        application: user.application ?? null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }

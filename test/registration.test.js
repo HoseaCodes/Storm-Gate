@@ -94,12 +94,16 @@ describe.each([
     expect(res.body.accesstoken).toBeUndefined();
   });
 
-  it('puts approval-required applications in PENDING even when status is omitted', async () => {
-    const res = mockRes();
-    await getRegister()(signup({ application: 'blog' }), res);
+  it.each(['blog', 'ambitious-admin'])(
+    'puts %s sign-ups in PENDING even when status is omitted',
+    async (application) => {
+      const res = mockRes();
+      await getRegister()(signup({ application }), res);
 
-    expect(saved[0].status).toBe('PENDING');
-  });
+      expect(saved[0].status).toBe('PENDING');
+      expect(res.body.accesstoken).toBeUndefined();
+    },
+  );
 
   it('cannot set a DENIED or APPROVED status for other applications either', async () => {
     const res = mockRes();
@@ -125,8 +129,8 @@ describe.each([
 });
 
 describe('resolveRegistrationStatus', () => {
-  it('defaults the approval list to the blog', () => {
-    expect(approvalRequiredApplications()).toEqual(['blog']);
+  it('defaults the approval list to the blog and ambitious-admin', () => {
+    expect(approvalRequiredApplications()).toEqual(['blog', 'ambitious-admin']);
   });
 
   it('reads APPROVAL_REQUIRED_APPLICATIONS when set', () => {

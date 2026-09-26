@@ -36,7 +36,7 @@ export function stripProtectedUserFields(body = {}) {
 
 // Applications whose sign-ups always wait for admin approval, regardless of
 // what the client sends. Override with a comma-separated list.
-const DEFAULT_APPROVAL_REQUIRED_APPLICATIONS = ['blog'];
+const DEFAULT_APPROVAL_REQUIRED_APPLICATIONS = ['blog', 'ambitious-admin'];
 
 export function approvalRequiredApplications() {
   const configured = process.env.APPROVAL_REQUIRED_APPLICATIONS;
