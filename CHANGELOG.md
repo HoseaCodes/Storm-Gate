@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.14.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.13.0...v1.14.0) (2026-09-27)
+
+### 🚀 Features
+
+* **email:** add application branding to email notifications and implement APP_NAMES configuration ([89a4d38](https://github.com/HoseaCodes/Storm-Gate/commit/89a4d382bfbbfdd92ce4beeb2268a8c12185923a))
+
+## [1.13.0](https://github.com/HoseaCodes/Storm-Gate/compare/v1.12.1...v1.13.0) (2026-09-27)
+
+### 🚀 Features
+
+* **email, appUrls:** implement application-specific password reset links and add APP_BASE_URLS configuration ([825a6d6](https://github.com/HoseaCodes/Storm-Gate/commit/825a6d6a6ae079253815aeba12091a2942c7f915))
+
 ## [1.12.1](https://github.com/HoseaCodes/Storm-Gate/compare/v1.12.0...v1.12.1) (2026-09-26)
 
 ### 🐛 Bug Fixes

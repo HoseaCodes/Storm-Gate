@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import Logger from './logger-lambda.js';
 import emailDelegate from '../emailIntegrator/deletage.js';
+import { appBaseUrl, appBranding } from './appUrls.js';
 
 const logger = new Logger('email');
 
@@ -21,7 +22,7 @@ export const verifyApprovalToken = (token) => {
 
 // Send approval request email to admin
 export const sendApprovalEmail = async (userData) => {
-  const { email, name } = userData;
+  const { email, name, application } = userData;
 
   try {
     const approvalToken = generateApprovalToken({ email });
@@ -36,8 +37,7 @@ export const sendApprovalEmail = async (userData) => {
     const result = await emailDelegate.sendApprovalRequest({
       email: email,
       name: name,
-      appName: 'Storm Gate',
-      appDisplayName: 'User Management System',
+      ...appBranding(application),
       approvalUrl,
       denyUrl,
     });
@@ -62,7 +62,7 @@ export const sendApprovalEmail = async (userData) => {
 
 // Send account approved notification to user
 export const sendAccountApprovedEmail = async (userData) => {
-  const { email, name } = userData;
+  const { email, name, application } = userData;
   
   try {
     const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
@@ -71,8 +71,7 @@ export const sendAccountApprovedEmail = async (userData) => {
       email,
       name,
       loginUrl: `${baseUrl}/login`,
-      appName: 'Storm Gate',
-      appDisplayName: 'User Management System',
+      ...appBranding(application),
     });
     
     if (result.success) {
@@ -89,13 +88,12 @@ export const sendAccountApprovedEmail = async (userData) => {
 
 // Send account denied notification to user
 export const sendAccountDeniedEmail = async (userData) => {
-  const { email, name } = userData;
+  const { email, name, application } = userData;
   try {
     const result = await emailDelegate.sendAccountDenied({
       email,
       name,
-      appName: 'Storm Gate',
-      appDisplayName: 'User Management System',
+      ...appBranding(application),
     });
     
     if (result.success) {
@@ -112,14 +110,13 @@ export const sendAccountDeniedEmail = async (userData) => {
 
 // Send registration confirmation to user (for pending approval)
 export const sendRegistrationPendingEmail = async (userData) => {
-  const { email, name } = userData;
+  const { email, name, application } = userData;
   
   try {
     const result = await emailDelegate.sendRegistrationPending({
       email,
       name,
-      appName: 'Storm Gate',
-      appDisplayName: 'User Management System',
+      ...appBranding(application),
     });
     
     if (result.success) {
@@ -136,18 +133,20 @@ export const sendRegistrationPendingEmail = async (userData) => {
 
 // Send password reset email to user
 export const sendPasswordResetEmail = async (userData) => {
-  const { email, name, resetToken } = userData;
+  const { email, name, resetToken, application } = userData;
   
   try {
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
-    const resetUrl = `${baseUrl}/reset-password/${resetToken}`;
+    // The account's own app, not one global URL; see utils/appUrls.js.
+    const resetUrl = `${appBaseUrl(application)}/reset-password/${resetToken}`;
     
     const result = await emailDelegate.sendPasswordReset({
       email,
       name,
       resetUrl,
-      appName: 'Storm Gate',
-      appDisplayName: 'User Management System',
+      // Matches resetPasswordExpires in the controllers. Without it the
+      // integrator's template claimed the link lasted 24 hours.
+      expiryTime: '20 minutes',
+      ...appBranding(application),
     });
     
     if (result.success) {
@@ -163,7 +162,7 @@ export const sendPasswordResetEmail = async (userData) => {
 };
 
 // Send a 6-digit email verification code.
-export const sendVerificationCodeEmail = async ({ email, name, code, expiryTime }) => {
+export const sendVerificationCodeEmail = async ({ email, name, code, expiryTime, application }) => {
   try {
     const result = await emailDelegate.sendEmailVerification({
       email,
@@ -171,8 +170,7 @@ export const sendVerificationCodeEmail = async ({ email, name, code, expiryTime 
       name: name || 'there',
       code,
       expiryTime,
-      appName: 'Storm Gate',
-      appDisplayName: 'User Management System',
+      ...appBranding(application),
     });
 
     if (result.success) {

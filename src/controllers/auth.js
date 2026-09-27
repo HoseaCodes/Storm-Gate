@@ -91,7 +91,7 @@ async function register(req, res) {
     }
 
     // A failed send is logged, not fatal: the user can ask for a new code.
-    await sendVerificationCodeEmail({ email, name, code: verification.code, expiryTime: CODE_TTL_LABEL });
+    await sendVerificationCodeEmail({ email, name, code: verification.code, expiryTime: CODE_TTL_LABEL, application });
 
     // Handle pending approval workflow
     if (userStatus === "PENDING") {
@@ -99,7 +99,7 @@ async function register(req, res) {
         // Send approval email to admin
         console.log(`Attempting to send approval email for user: ${email}`);
         logger.info(`Attempting to send approval email for user: ${email}`);
-        const emailSent = await sendApprovalEmail({ email, name });
+        const emailSent = await sendApprovalEmail({ email, name, application });
         
         if (emailSent) {
           logger.info(`Approval email sent successfully for user: ${email}`);
@@ -109,7 +109,7 @@ async function register(req, res) {
         
         // Send confirmation email to user
         logger.info(`Attempting to send pending registration email to user: ${email}`);
-        const userEmailSent = await sendRegistrationPendingEmail({ email, name });
+        const userEmailSent = await sendRegistrationPendingEmail({ email, name, application });
         
         if (userEmailSent) {
           logger.info(`Pending registration email sent successfully to user: ${email}`);
@@ -290,7 +290,8 @@ async function requestPasswordReset(req, res) {
     await sendPasswordResetEmail({
       email: user.email,
       name: user.name,
-      resetToken
+      resetToken,
+      application: user.application
     });
 
     logger.info(`Password reset requested for user: ${email}`);
