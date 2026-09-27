@@ -560,7 +560,8 @@ async function requestPasswordReset(req, res) {
     await sendPasswordResetEmail({
       email: user.email,
       name: user.name,
-      resetToken
+      resetToken,
+      application: user.application
     });
 
     logger.info(`Password reset requested for user: ${email}`);

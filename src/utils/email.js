@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import Logger from './logger-lambda.js';
 import emailDelegate from '../emailIntegrator/deletage.js';
+import { appBaseUrl } from './appUrls.js';
 
 const logger = new Logger('email');
 
@@ -136,16 +137,19 @@ export const sendRegistrationPendingEmail = async (userData) => {
 
 // Send password reset email to user
 export const sendPasswordResetEmail = async (userData) => {
-  const { email, name, resetToken } = userData;
+  const { email, name, resetToken, application } = userData;
   
   try {
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
-    const resetUrl = `${baseUrl}/reset-password/${resetToken}`;
+    // The account's own app, not one global URL; see utils/appUrls.js.
+    const resetUrl = `${appBaseUrl(application)}/reset-password/${resetToken}`;
     
     const result = await emailDelegate.sendPasswordReset({
       email,
       name,
       resetUrl,
+      // Matches resetPasswordExpires in the controllers. Without it the
+      // integrator's template claimed the link lasted 24 hours.
+      expiryTime: '20 minutes',
       appName: 'Storm Gate',
       appDisplayName: 'User Management System',
     });
