@@ -34,3 +34,40 @@ export function appBaseUrl(application) {
   const base = (application && urls[application]) || process.env.BASE_URL || 'http://localhost:3001';
   return String(base).replace(/\/+$/, '');
 }
+
+// Branding for the emails an application's users receive (verification codes,
+// password resets, approval notices). Every email used to say "Storm Gate /
+// User Management System", which a customer of one of the apps would not
+// recognise. Configured like APP_BASE_URLS, with APP_NAMES:
+//   APP_NAMES={"manifestathletics":"Manifest Athletics","blog":{"name":"HoseaCodes","tagline":"Blog"}}
+// A plain string is the name; an object may also set a tagline shown under it.
+// Applications not listed keep the old Storm Gate wording.
+const DEFAULT_BRANDING = { appName: 'Storm Gate', appDisplayName: 'User Management System' };
+
+function configuredAppNames() {
+  const raw = process.env.APP_NAMES;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    console.error('APP_NAMES is not valid JSON; ignoring it');
+    return {};
+  }
+}
+
+/** { appName, appDisplayName } for the emails of `application`. */
+export function appBranding(application) {
+  const entry = application ? configuredAppNames()[application] : undefined;
+  if (typeof entry === 'string' && entry.trim()) {
+    // With no tagline, repeat the name rather than fall back to the
+    // integrator's own default ("Email Integrator Service").
+    return { appName: entry.trim(), appDisplayName: entry.trim() };
+  }
+  if (entry && typeof entry === 'object' && typeof entry.name === 'string' && entry.name.trim()) {
+    const name = entry.name.trim();
+    const tagline = typeof entry.tagline === 'string' && entry.tagline.trim() ? entry.tagline.trim() : name;
+    return { appName: name, appDisplayName: tagline };
+  }
+  return { ...DEFAULT_BRANDING };
+}

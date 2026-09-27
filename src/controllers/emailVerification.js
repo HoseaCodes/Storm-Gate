@@ -54,7 +54,13 @@ export async function resendVerification(req, res) {
       const { code, fields } = newVerificationCode();
       Object.assign(user, fields);
       await user.save();
-      await sendVerificationCodeEmail({ email: user.email, name: user.name, code, expiryTime: CODE_TTL_LABEL });
+      await sendVerificationCodeEmail({
+        email: user.email,
+        name: user.name,
+        code,
+        expiryTime: CODE_TTL_LABEL,
+        application: user.application,
+      });
     }
 
     return res.json({ msg: RESEND_ACK });

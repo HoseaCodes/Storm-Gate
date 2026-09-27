@@ -40,7 +40,8 @@ async function approveUser(req, res) {
     // Send approval notification to user
     await sendAccountApprovedEmail({
       email: user.email,
-      name: user.name
+      name: user.name,
+      application: user.application
     });
 
     logger.info(`User approved: ${user.email}`);
@@ -93,7 +94,8 @@ async function denyUser(req, res) {
     // Send denial notification
     await sendAccountDeniedEmail({
       email: user.email,
-      name: user.name
+      name: user.name,
+      application: user.application
     });
 
     // Update user status to denied (alternatively, you could delete the user)
@@ -168,7 +170,8 @@ async function manuallyApproveUser(req, res) {
     // Send approval notification to user
     await sendAccountApprovedEmail({
       email: user.email,
-      name: user.name
+      name: user.name,
+      application: user.application
     });
 
     logger.info(`User manually approved: ${user.email}`);
@@ -210,7 +213,8 @@ async function manuallyDenyUser(req, res) {
     // Send denial notification
     await sendAccountDeniedEmail({
       email: user.email,
-      name: user.name
+      name: user.name,
+      application: user.application
     });
 
     // Update status to denied
